@@ -1,0 +1,9 @@
+.DS_Store
+Pipfile.lock
+__pycache__
+cdk.out
+.vscode
+.env
+build
+dist
+*.egg-info

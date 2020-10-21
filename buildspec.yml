@@ -1,0 +1,47 @@
+version: 0.2
+
+env:
+  variables:
+    STUFF: "rtu"
+  # parameter-store:
+  #   LOGIN_PASSWORD: /CodeBuild/dockerLoginPassword
+
+phases:
+  # install:
+  #   commands:
+  #     - echo Entered the install phase...
+  #     - apt-get update -y
+  #     - apt-get install -y python-pip
+  #   finally:
+  #     - echo This always runs even if the update or install command fails 
+  # pre_build:
+  #   commands:
+  #     - echo Entered the pre_build phase...
+  #     # - docker login –u User –p $LOGIN_PASSWORD
+  #   finally:
+  #     - echo This always runs even if the login command fails 
+  build:
+    commands:
+      - echo Build started on `date`
+      - pip install -r lambdas/cfn_resources/requirements.txt -t layers/cfn_resources/
+    finally:
+      - echo Layer built
+  # post_build:
+  #   commands:
+  #     - pwd && ls -la
+
+artifacts:
+  files:
+    - 'aviv_cdk/**/*'
+    - '*'
+  # name: cfn_resourcese-$(date +%Y-%m-%d)
+  secondary-artifacts:
+    cfn_resources:
+      files:
+        - '**/*'
+      base-directory: layers/cfn_resources/
+      discard-paths: no
+
+cache:
+  paths:
+    - '/root/.cache/**/*'

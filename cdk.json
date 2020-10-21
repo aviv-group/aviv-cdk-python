@@ -1,0 +1,10 @@
+{
+    "app": "python3 app.py",
+    "language": "python",
+    "versionReporting": false,
+    "context": {
+        "env": "dev",
+        "version": "0.0.0"
+    }
+  }
+  

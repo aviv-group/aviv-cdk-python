@@ -1,0 +1,4 @@
+boto3
+cfn_resource_provider>=0.9.0<=1.0.0
+importlib-metadata
+requests

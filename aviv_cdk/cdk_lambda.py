@@ -26,10 +26,6 @@ class CDKLambda(core.Construct):
         if layer_attrs:
             self._layer = aws_lambda.LayerVersion(
                 self, "layer",
-                # compatible_runtimes=[
-                #     aws_lambda.Runtime.PYTHON_3_7,
-                #     aws_lambda.Runtime.PYTHON_3_6
-                # ],
                 **layer_attrs
             )
             ssm_name = "/{}/layer".format(id.replace('-', '/'))

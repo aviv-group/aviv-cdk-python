@@ -2,9 +2,9 @@ version: 0.2
 
 env:
   variables:
-    STUFF: "rtu"
+    AWS_REGION: eu-west-1
+    PYPI_TOKEN: pypi-AgENdGVzdC5weXBpLm9yZwIkMjRmMTMzZDktNjZhMS00NTljLWIwN2MtZjRiY2E2YjEwOTk1AAIleyJwZXJtaXNzaW9ucyI6ICJ1c2VyIiwgInZlcnNpb24iOiAxfQAABiCxK0JvjQNzP3X8gJRUcgN4KIcHjJoZX7OM1ViPpv_hIA
   # parameter-store:
-  #   LOGIN_PASSWORD: /CodeBuild/dockerLoginPassword
 
 phases:
   # install:
@@ -14,31 +14,37 @@ phases:
   #     - apt-get install -y python-pip
   #   finally:
   #     - echo This always runs even if the update or install command fails 
-  # pre_build:
-  #   commands:
-  #     - echo Entered the pre_build phase...
-  #     # - docker login –u User –p $LOGIN_PASSWORD
-  #   finally:
-  #     - echo This always runs even if the login command fails 
+  pre_build:
+    commands:
+      - pip install --quiet twine
+      - pip install --quiet -r lambdas/cfn_resources/requirements.txt -t layers/cfn_resources/
   build:
     commands:
-      - echo Build started on `date`
-      - pip install -r lambdas/cfn_resources/requirements.txt -t layers/cfn_resources/
+      - python3 setup.py sdist bdist_wheel
     finally:
-      - echo Layer built
-  # post_build:
-  #   commands:
-  #     - pwd && ls -la
+      - ls -la dist/
+      - echo Build done!
+  post_build:
+    commands:
+      - |
+        cat << EOF > ~/.pypirc
+        [testpypi]
+        username = __token__
+        password = ${PYPI_TOKEN}
+        EOF
+      - cat ~/.pypirc
+      - python3 -m twine upload --repository testpypi dist/*
 
 artifacts:
   files:
     - 'aviv_cdk/**/*'
     - '*'
-  # name: cfn_resourcese-$(date +%Y-%m-%d)
+  discard-paths: no
   secondary-artifacts:
     cfn_resources:
       files:
         - '**/*'
+      name: cfn_resources-$(date +%Y-%m-%d)
       base-directory: layers/cfn_resources/
       discard-paths: no
 

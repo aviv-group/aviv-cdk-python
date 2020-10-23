@@ -8,6 +8,8 @@ Requires:
 
 - Python >= 3.6
 - pip
+- cdk >= 1.68
+- access to AWS
 
 In a terminal:
 

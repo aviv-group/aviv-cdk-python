@@ -1,13 +1,13 @@
 version: 0.2
 
-env:
-  variables:
-    AWS_REGION: eu-west-1
-    PYPI_TOKEN: pypi-AgENdGVzdC5weXBpLm9yZwIkMjRmMTMzZDktNjZhMS00NTljLWIwN2MtZjRiY2E2YjEwOTk1AAIleyJwZXJtaXNzaW9ucyI6ICJ1c2VyIiwgInZlcnNpb24iOiAxfQAABiCxK0JvjQNzP3X8gJRUcgN4KIcHjJoZX7OM1ViPpv_hIA
-  # parameter-store:
+# env:
+#   variables:
+#     AWS_REGION: eu-west-1
 
 phases:
-  # install:
+  install:
+    runtime-versions:
+      python: 3.x
   #   commands:
   #     - echo Entered the install phase...
   #     - apt-get update -y
@@ -16,14 +16,20 @@ phases:
   #     - echo This always runs even if the update or install command fails 
   pre_build:
     commands:
-      - pip install --quiet twine
-      - pip install --quiet -r lambdas/cfn_resources/requirements.txt -t layers/cfn_resources/
+      - TAG=$(git name-rev --name-only HEAD | cut -d/ -f2)
+      - |
+        if [ "$TAG" != "master" ]; then
+          pip install --quiet twine;
+        fi
   build:
     commands:
-      - python3 setup.py sdist bdist_wheel
+      - pip install --quiet -r lambdas/cfn_resources/requirements.txt -t layers/cfn_resources/
+      - |
+        if [ "$TAG" != "master" ]; then
+          python3 setup.py sdist bdist_wheel
+        fi
     finally:
-      - ls -la dist/
-      - echo Build done!
+      - echo Build done for ${TAG}
   post_build:
     commands:
       - |
@@ -32,8 +38,11 @@ phases:
         username = __token__
         password = ${PYPI_TOKEN}
         EOF
-      - cat ~/.pypirc
-      - python3 -m twine upload --repository testpypi dist/*
+      - |
+        if [ "$TAG" != "master" ]; then
+          echo Releasing aviv-cdk@${TAG}
+          python3 -m twine upload --repository testpypi dist/*
+        fi
 
 artifacts:
   files:

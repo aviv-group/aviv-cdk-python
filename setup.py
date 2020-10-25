@@ -26,12 +26,11 @@ setuptools.setup(
          "aws-cdk-aws-s3",
          "aws-cdk-aws-lambda",
          "aws-cdk-aws-ssm",
-         "aws-cdk-aws-secretsmanager",
-         "aws-cdk-aws-cloudformation"
+         "aws-cdk-aws-secretsmanager"
    ],
     extras_require={
-        "cicd": ["aws-cdk-pipelines", "aws-cdk-aws-codepipeline", "aws-cdk-aws-codepipeline-actions"],
-        "lambdas": ["aws-cdk-pipelines", "aws-cdk-aws-codepipeline", "aws-cdk-aws-codepipeline-actions"]
+        "cicd": ["pyyaml", "aws-cdk-pipelines", "aws-cdk-aws-codebuild", "aws-cdk-aws-codepipeline", "aws-cdk-aws-codepipeline-actions"],
+        "data": ["aws-cdk-glue", "aws-cdk-athena"]
     },
     python_requires='>=3.6',
 )

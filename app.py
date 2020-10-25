@@ -8,11 +8,11 @@ from aviv_cdk import (
     pipelines
 )
 
-path = os.path.dirname(__file__)
+secret_path = os.environ.get('SECRET_PATH', 'aviv/gtt/ace/tokens')
 
 app = core.App()
 
-lbd = core.Stack(app, 'iam-idp')  # env=core.Environment(account='605901617242', region='eu-west-1'))
+lbd = core.Stack(app, 'iam-idp')
 cdk_lambda.CDKLambda(
     lbd, 'customresource-lambda',
     lambda_attrs=dict(
@@ -23,24 +23,22 @@ cdk_lambda.CDKLambda(
     ),
     layer_attrs=dict(
         description='cfn_resources layer for idp',
-        code=aws_lambda.AssetCode('build/artifacts-cfn_resources.zip')
-        # code=aws_lambda.AssetCode('build/layers/cfn_resources/')
+        code=aws_lambda.AssetCode('build/layers/cfn_resources/')
     )
 )
 
-pipe = core.Stack(app, 'cicd')  # env=core.Environment(account='605901617242', region='eu-west-1'))
-
+pipe = core.Stack(app, 'cicd')
 pipelines.Pipelines(
     pipe, 'pipeline',
     github_config=dict(
-        oauth_token=core.SecretValue.secrets_manager('aviv/gtt/ace/tokens', json_field='GITHUB_TOKEN'),
+        oauth_token=core.SecretValue.secrets_manager(secret_path, json_field='GITHUB_TOKEN'),
         owner='aviv-group',
         repo='aviv-cdk-python',
         branch='master'
     ),
     project_config=dict(
         environment_variables=dict(
-            PYPI_TOKEN=core.SecretValue.secrets_manager('aviv/gtt/ace/tokens', json_field='PYPI_TOKEN')
+            PYPI_TOKEN=core.SecretValue.secrets_manager(secret_path, json_field='PYPI_TOKEN')
         ),
         build_spec='buildspec.yml'
     )

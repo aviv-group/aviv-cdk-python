@@ -1,60 +1,60 @@
 version: 0.2
 
-# env:
-#   variables:
-#     AWS_REGION: eu-west-1
+env:
+  variables:
+    PIP_FLAGS: --disable-pip-version-check --quiet --no-warn-conflicts
 
 phases:
   install:
     runtime-versions:
-      python: 3.x
-  #   commands:
-  #     - echo Entered the install phase...
-  #     - apt-get update -y
-  #     - apt-get install -y python-pip
-  #   finally:
-  #     - echo This always runs even if the update or install command fails 
+      python: 3.8
+      nodejs: 12
+    commands:
+      - npm install -g aws-cdk
+      - pip install ${PIP_FLAGS} --upgrade pip aws-sam-cli awscli
+      - TAG=$(git name-rev --name-only HEAD | cut -d/ -f2)
   pre_build:
     commands:
-      - TAG=$(git name-rev --name-only HEAD | cut -d/ -f2)
-      - |
-        if [ "$TAG" != "master" ]; then
-          pip install --quiet twine;
-        fi
+      - pip install ${PIP_FLAGS} .[cicd]
+      # Build cfn_resources layer
+      - pip install ${PIP_FLAGS} -r lambdas/cfn_resources/requirements.txt -t build/layers/cfn_resources/
+      # - (cd build/layers/cfn_resources/ &&  zip -q -r ../../build/artifacts-cfn_resources.zip .)
   build:
     commands:
-      - pip install --quiet -r lambdas/cfn_resources/requirements.txt -t layers/cfn_resources/
       - |
         if [ "$TAG" != "master" ]; then
           python3 setup.py sdist bdist_wheel
         fi
+      - cdk synth
     finally:
       - echo Build done for ${TAG}
   post_build:
     commands:
       - |
         cat << EOF > ~/.pypirc
-        [testpypi]
+        [pypi]
         username = __token__
         password = ${PYPI_TOKEN}
         EOF
       - |
         if [ "$TAG" != "master" ]; then
           echo Releasing aviv-cdk@${TAG}
-          python3 -m twine upload --repository testpypi dist/*
+          pip install ${PIP_FLAGS} twine;
+          python3 -m twine upload --repository pypi dist/*
         fi
 
 artifacts:
   files:
-    - 'aviv_cdk/**/*'
-    - '*'
+    - '**/*'
+  base-directory: cdk.out/
   discard-paths: no
+  # Artifact for cfn_resources layer
   secondary-artifacts:
     cfn_resources:
       files:
         - '**/*'
       name: cfn_resources-$(date +%Y-%m-%d)
-      base-directory: layers/cfn_resources/
+      base-directory: build/layers/cfn_resources/
       discard-paths: no
 
 cache:

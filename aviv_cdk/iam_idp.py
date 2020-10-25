@@ -13,7 +13,7 @@ from .cdk_lambda import CDKLambda
 class IAMIdpSAML(CDKLambda):
     _idp: cfn.CfnCustomResource = None
 
-    def __init__(self,  scope: core.Construct, id: str, idp_name: str, idp_url: str, *, debug=False):
+    def __init__(self,  scope: core.Construct, id: str, idp_name: str, idp_url: str, *, cfn_resources_path: str=None, debug=False):
         """Create an IAM SAML Identity Provider
 
         Args:
@@ -31,10 +31,11 @@ class IAMIdpSAML(CDKLambda):
         )
         # TODO: release layer
         # pip install -r requirements.txt -t .
-        layer_path=rdir + '/build/artifacts-cfn_resources.zip'
+        if not cfn_resources_path:
+            cfn_resources_path=rdir + '/build/artifacts-cfn_resources.zip'
         layer_attrs=dict(
             description='cfn_resources layer for idp',
-            code=aws_lambda.AssetCode(layer_path)
+            code=aws_lambda.AssetCode(cfn_resources_path)
         )
         super().__init__(scope, id, lambda_attrs=lambda_attrs, layer_attrs=layer_attrs, remote_account_grant=False)
 

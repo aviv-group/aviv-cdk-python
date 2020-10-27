@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 from aws_cdk import (
     aws_iam as iam,
@@ -13,7 +14,7 @@ from .cdk_lambda import CDKLambda
 class IAMIdpSAML(CDKLambda):
     _idp: cfn.CfnCustomResource = None
 
-    def __init__(self,  scope: core.Construct, id: str, idp_name: str, idp_url: str, *, cfn_resources_path: str=None, debug=False):
+    def __init__(self,  scope: core.Construct, id: str, idp_name: str, idp_url: str, *, cfn_lambda:str = None, cfn_resources_path: str=None, debug=False):
         """Create an IAM SAML Identity Provider
 
         Args:
@@ -22,18 +23,16 @@ class IAMIdpSAML(CDKLambda):
             idp_name (str): IAM Idp name
             idp_url (str): Your SAML Identity provider URL
         """
-        # TODO: fix, rdir should be package data path
-        rdir = os.path.dirname(os.path.dirname(__file__))
+        if not cfn_lambda:
+            cfn_lambda = sys.prefix + 'share/aviv-cdk/saml.py'
         lambda_attrs=dict(
-                code=aws_lambda.InlineCode(CDKLambda._code_inline(rdir + '/lambdas/iam_idp/saml.py')),
+                code=aws_lambda.InlineCode(CDKLambda._code_inline(cfn_lambda)),
                 handler='index.handler',
                 timeout=core.Duration.seconds(20),
                 runtime=aws_lambda.Runtime.PYTHON_3_7
         )
-        # TODO: release layer
-        # pip install -r requirements.txt -t .
         if not cfn_resources_path:
-            cfn_resources_path=rdir + '/build/artifacts-cfn_resources.zip'
+            cfn_resources_path=sys.prefix + 'share/aviv-cdk/artifacts-cfn_resources.zip'
         layer_attrs=dict(
             description='cfn_resources layer for idp',
             code=aws_lambda.AssetCode(cfn_resources_path)

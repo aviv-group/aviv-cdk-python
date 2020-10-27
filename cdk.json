@@ -3,8 +3,10 @@
     "language": "python",
     "versionReporting": false,
     "context": {
-        "env": "dev",
-        "version": "0.0.0"
+        "organisation": "aviv",
+        "application": "aviv-cdk",
+        "team": "gtt",
+        "environment": "dev"
     }
   }
   

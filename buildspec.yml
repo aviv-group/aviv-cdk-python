@@ -1,6 +1,7 @@
 version: 0.2
 
 env:
+  git-credential-helper: yes
   variables:
     PIP_FLAGS: --disable-pip-version-check --quiet --no-warn-conflicts
 

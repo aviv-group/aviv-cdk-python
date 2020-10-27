@@ -44,16 +44,17 @@ class Pipelines(core.Construct):
             encryption=s3.BucketEncryption.KMS_MANAGED,
             versioned=True
         )
-        self.pipe = cp.Pipeline(self, 'pipe', cross_account_keys=True, pipeline_name=id + 'Pipe')
+        self.pipe = cp.Pipeline(self, 'pipe', cross_account_keys=True, pipeline_name=id + '-pipe')
 
         self._source(**github_config)
         self._project(**project_config)
         self._build(self.artifacts['sources'][0], self.artifacts['build_extras'])
-        self._deploy()
+        # self._deploy()
 
     def _project(self, **project_config):
-        if 'build_spec' in project_config:
-            project_config['build_spec'] = Pipelines.load_buildspec(project_config['build_spec'])
+        if 'build_spec' not in project_config:
+            project_config['build_spec'] = 'buildspec.yml'
+        project_config['build_spec'] = Pipelines.load_buildspec(project_config['build_spec'])
         self.project = cb.PipelineProject(
             self, "project",
             project_name="{}".format(self.node.id),
@@ -97,15 +98,14 @@ class Pipelines(core.Construct):
             actions=self.actions['builds']
         )
 
-    def _deploy(self, **deploy_config):
-        # deploy = cpa.CloudFormationCreateUpdateStackAction(
-        #     action_name='Deploy',
-        #     stack_name='iam-idp',
-        #     admin_permissions=True,
-        #     template_path=self.artifacts['builds'][0].at_path("cdk.out/iam-idp.template.json"),
-        #     **deploy_config
-        # )
-        # self.actions['deploy'].append(deploy)
+    def deploy(self, **deploy_config):
+        deploy = cpa.CloudFormationCreateUpdateStackAction(
+            action_name='Deploy',
+            admin_permissions=True,
+            # template_path=self.artifacts['builds'][0].at_path("cdk.out/iam-idp.template.json"),
+            **deploy_config
+        )
+        self.actions['deploy'].append(deploy)
         logging.warning('TODO: CFN deploy')
 
     @staticmethod

@@ -1,8 +1,45 @@
 from aws_cdk import (
     aws_iam as iam,
+    aws_secretsmanager as asm,
     core
 )
 
+
+class SecurityCredentials(core.Construct):
+    user: iam.IUser
+
+    def __init__(self, scope: core.Construct, id: str, *, user: iam.IUser=None) -> None:
+        super().__init__(scope, id)
+        self.user = user
+
+    def console_password(self, secret_name: str, template: str = None, key: str = None):
+        self.secret = asm.Secret(
+            self,
+            id,
+            generate_secret_string=asm.SecretStringGenerator(
+                secret_string_template=template,
+                generate_string_key=key,
+                password_length=24,
+                exclude_characters='"@/\$'
+            ),
+            secret_name='{}{}'.format(secret_name, id)
+        )
+        return core.SecretValue(self.secret.secret_value.to_string())
+
+    def access_key(self, user_name: str=None):
+        if not user_name and self.user:
+            user_name = self.user.user_name
+        userkey = iam.CfnAccessKey(self, 'key', user_name=user_name)
+
+        secret = asm.CfnSecret(
+            self, 'userKey',
+            name='iam/user/{}/accesskey'.format(user_name),
+            secret_string='{{"AccessKeyId": "{}", "SecretAccessKey": "{}"}}'.format(
+                userkey.ref,
+                userkey.attr_secret_access_key
+            )
+        )
+        return userkey.attr_secret_access_key
 
 class Role(iam.Role):
     def __init__(self, scope: core.Construct, id: str, assumed_by=None, *, description=None, policies: list=None, external_ids=None, inline_policies=None,

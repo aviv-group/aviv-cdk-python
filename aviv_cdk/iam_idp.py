@@ -23,7 +23,7 @@ class IAMIdpSAML(CDKLambda):
             idp_name (str): IAM Idp name
             idp_url (str): Your SAML Identity provider URL
         """
-        rdir = sys.prefix + 'share/aviv-cdk/iam-idp/'
+        rdir = sys.prefix + '/share/aviv-cdk/iam-idp/'
         if not cfn_lambda:
             cfn_lambda = rdir + 'saml.py'
         lambda_attrs=dict(

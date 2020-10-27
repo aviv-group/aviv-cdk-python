@@ -19,7 +19,7 @@ phases:
       - pip install ${PIP_FLAGS} .[cicd]
       # Build cfn_resources layer
       - pip install ${PIP_FLAGS} -r lambdas/cfn_resources/requirements.txt -t build/layers/cfn_resources/
-      # - (cd build/layers/cfn_resources/ &&  zip -q -r ../../build/artifacts-cfn_resources.zip .)
+      - (cd build/layers/cfn_resources/ &&  zip -q -r ../../artifacts-cfn_resources.zip .)
   build:
     commands:
       - |

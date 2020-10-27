@@ -23,8 +23,9 @@ class IAMIdpSAML(CDKLambda):
             idp_name (str): IAM Idp name
             idp_url (str): Your SAML Identity provider URL
         """
+        rdir = sys.prefix + 'share/aviv-cdk/iam-idp/'
         if not cfn_lambda:
-            cfn_lambda = sys.prefix + 'share/aviv-cdk/saml.py'
+            cfn_lambda = rdir + 'saml.py'
         lambda_attrs=dict(
                 code=aws_lambda.InlineCode(CDKLambda._code_inline(cfn_lambda)),
                 handler='index.handler',
@@ -32,7 +33,7 @@ class IAMIdpSAML(CDKLambda):
                 runtime=aws_lambda.Runtime.PYTHON_3_7
         )
         if not cfn_resources_path:
-            cfn_resources_path=sys.prefix + 'share/aviv-cdk/artifacts-cfn_resources.zip'
+            cfn_resources_path=rdir + 'artifacts-cfn_resources.zip'
         layer_attrs=dict(
             description='cfn_resources layer for idp',
             code=aws_lambda.AssetCode(cfn_resources_path)

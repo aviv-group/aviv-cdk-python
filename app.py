@@ -26,7 +26,7 @@ cdk_lambda.CDKLambda(
     ),
     layer_attrs=dict(
         description='cfn_resources layer for idp',
-        code=aws_lambda.AssetCode('build/layers/cfn_resources/')
+        code=aws_lambda.AssetCode('build/artifacts-cfn_resources.zip')
     )
 )
 

@@ -17,11 +17,10 @@ setuptools.setup(
         include=['aviv_cdk']
     ),
     data_files=[
-        ("share/aviv-cdk/", [
-            "build/artifacts-cfn_resources.zip",
+        ("share/aviv-cdk/iam-idp/", [
+            "lambdas/cfn_resources/requirements.txt",
             "lambdas/iam_idp/saml.py"
         ]),
-        # ("share/aviv-cdk/lambdas-iam-idp", ["lambdas/iam_idp/saml.py"])
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

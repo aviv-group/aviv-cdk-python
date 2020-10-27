@@ -29,6 +29,7 @@ pipenv install -d -e .
 ```sh
 # Build layer for release
 pip install -r lambdas/cfn_resources/requirements.txt -t build/layers/cfn_resources/
+(cd build/layers/cfn_resources/ &&  zip -q -r ../../artifacts-cfn_resources.zip .)
 
 # Or with codebuild agent - see: buildspec.yml
 codebuild_build.sh -i aws/codebuild/standard:4.0 -a build

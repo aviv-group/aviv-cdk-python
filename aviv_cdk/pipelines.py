@@ -1,15 +1,26 @@
 import os
-from os import stat
 import yaml
 import logging
 from aws_cdk import (
     aws_codebuild as cb,
     aws_codepipeline as cp,
     aws_codepipeline_actions as cpa,
-    pipelines as cdkpipeline,
+    # aws_codecommit as cc,
+    aws_codestarconnections as csc,
     aws_s3 as s3,
     core
 )
+
+
+class GithubConnection(core.Construct):
+    def __init__(self, scope, id, github_config) -> None:
+        super().__init__(scope, id)
+        self.connection = csc.CfnConnection(
+            self, 'github-connection',
+            connection_name='{}'.format(github_config['owner']),
+            host_arn=github_config['connection_host'],
+            provider_type='GitHub'
+        )
 
 
 class Pipelines(core.Construct):
@@ -53,12 +64,17 @@ class Pipelines(core.Construct):
 
     def _source(self, **github_config):
         artifact = cp.Artifact()
-        checkout = cpa.GitHubSourceAction(
-            action_name="{}@{}".format(github_config['repo'], github_config['branch']),
+
+        checkout = cpa.BitBucketSourceAction(
+            connection_arn=github_config['connection'],
+            action_name="Source-{}".format(github_config['branch']),
             output=artifact,
-            trigger=cpa.GitHubTrigger.POLL,
-            **github_config
+            owner=github_config['owner'],
+            repo=github_config['repo'],
+            branch=github_config['branch'],
+            code_build_clone_output=True
         )
+
         self.artifacts['sources'].append(artifact)
         self.actions['sources'].append(checkout)
         self.pipe.add_stage(stage_name='Source@{}'.format(github_config['repo']), actions=[checkout])
@@ -81,13 +97,16 @@ class Pipelines(core.Construct):
             actions=self.actions['builds']
         )
 
-    def _deploy(self):
-        deploy = cpa.S3DeployAction(
-            action_name='Deploy',
-            bucket=self.bucket,
-            input=self.artifacts['builds'][0]
-        )
-        self.actions['deploy'].append(deploy)
+    def _deploy(self, **deploy_config):
+        # deploy = cpa.CloudFormationCreateUpdateStackAction(
+        #     action_name='Deploy',
+        #     stack_name='iam-idp',
+        #     admin_permissions=True,
+        #     template_path=self.artifacts['builds'][0].at_path("cdk.out/iam-idp.template.json"),
+        #     **deploy_config
+        # )
+        # self.actions['deploy'].append(deploy)
+        logging.warning('TODO: CFN deploy')
 
     @staticmethod
     def env(environment_variables: dict):

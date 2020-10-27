@@ -13,7 +13,9 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/aviv-group/aviv-cdk-python",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(
+        include=['aviv_cdk']
+    ),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
@@ -29,7 +31,16 @@ setuptools.setup(
          "aws-cdk-aws-secretsmanager"
    ],
     extras_require={
-        "cicd": ["pyyaml", "aws-cdk-pipelines", "aws-cdk-aws-codebuild", "aws-cdk-aws-codepipeline", "aws-cdk-aws-codepipeline-actions"],
+        "cicd": [
+            "aws-cdk-pipelines",
+            "aws-cdk-aws-cloudformation",
+            "aws-cdk-aws-codebuild",
+            "aws-cdk-aws-codecommit",
+            "aws-cdk-aws-codepipeline",
+            "aws-cdk-aws-codepipeline-actions",
+            "aws-cdk-aws-codestarconnections",
+            "pyyaml"
+        ],
         "data": ["aws-cdk-glue", "aws-cdk-athena"]
     },
     python_requires='>=3.6',

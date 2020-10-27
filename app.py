@@ -9,6 +9,8 @@ from aviv_cdk import (
 )
 
 secret_path = os.environ.get('SECRET_PATH', 'aviv/gtt/ace/tokens')
+GITHUB_CONNECTION = os.environ.get('GITHUB_CONNECTION', 'arn:aws:codestar-connections:eu-west-1:605901617242:connection/83d824fc-5048-4f3f-b569-8251c98daae3')
+
 
 app = core.App()
 
@@ -27,11 +29,12 @@ cdk_lambda.CDKLambda(
     )
 )
 
-pipe = core.Stack(app, 'cicd')
+pipe = core.Stack(app, 'aviv-cdk-cicd')
 pipelines.Pipelines(
     pipe, 'pipeline',
     github_config=dict(
-        oauth_token=core.SecretValue.secrets_manager(secret_path, json_field='GITHUB_TOKEN'),
+        # oauth_token=core.SecretValue.secrets_manager(secret_path, json_field='GITHUB_TOKEN'),
+        connection=GITHUB_CONNECTION,
         owner='aviv-group',
         repo='aviv-cdk-python',
         branch='master'

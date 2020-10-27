@@ -16,6 +16,10 @@ setuptools.setup(
     packages=setuptools.find_packages(
         include=['aviv_cdk']
     ),
+    data_files=[
+        ("share/aviv-cdk/cfn-resources-layer", ['build/artifacts-cfn_resources.zip']), #build/layers/cfn_resources']
+        ("share/aviv-cdk/lambdas-iam-idp", ["lambdas/iam_idp/saml.py"])
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

@@ -22,6 +22,7 @@ class IAMIdpSAML(CDKLambda):
             idp_name (str): IAM Idp name
             idp_url (str): Your SAML Identity provider URL
         """
+        # TODO: fix, rdir should be package data path
         rdir = os.path.dirname(os.path.dirname(__file__))
         lambda_attrs=dict(
                 code=aws_lambda.InlineCode(CDKLambda._code_inline(rdir + '/lambdas/iam_idp/saml.py')),

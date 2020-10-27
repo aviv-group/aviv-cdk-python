@@ -1,4 +1,4 @@
-__version__='0.0.3pre'
+__version__='0.0.3rc2'
 
 import json
 

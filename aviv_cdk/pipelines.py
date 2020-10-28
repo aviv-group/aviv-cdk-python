@@ -99,11 +99,15 @@ class Pipelines(core.Construct):
         )
 
     def deploy(self, **deploy_config):
+        if 'template_path' not in deploy_config:
+            deploy_config['template_path'] = self.artifacts['builds'][0].at_path(
+                "cdk.out/{}.template.json".format(deploy_config['stack_name'])
+            )
+        if 'action_name' not in deploy_config:
+            deploy_config['action_name']="Deploy-{}".format(deploy_config['stack_name'])
         deploy = cpa.CloudFormationCreateUpdateStackAction(
-            action_name='Deploy',
             admin_permissions=True,
             extra_inputs=self.artifacts['builds'],
-            # template_path=self.artifacts['builds'][0].at_path("cdk.out/iam-idp.template.json"),
             **deploy_config
         )
         self.actions['deploy'].append(deploy)

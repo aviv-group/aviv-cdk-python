@@ -1,3 +1,3 @@
 {
-  "ssm:account=605901617242:parameterName=/aviv/ace/github/connection/aviv-group:region=eu-west-1": "arn:aws:codestar-connections:eu-west-1:605901617242:connection/83d824fc-5048-4f3f-b569-8251c98daae3"
+  "ssm:account=605901617242:parameterName=/aviv/ace/github/connection/aviv-group:region=eu-west-1": "arn:aws:codestar-connections:eu-west-1:605901617242:connection/bf4fced3-3adf-410e-b2a8-f5278d72111b"
 }

@@ -102,11 +102,15 @@ class Pipelines(core.Construct):
         deploy = cpa.CloudFormationCreateUpdateStackAction(
             action_name='Deploy',
             admin_permissions=True,
+            extra_inputs=self.artifacts['builds'],
             # template_path=self.artifacts['builds'][0].at_path("cdk.out/iam-idp.template.json"),
             **deploy_config
         )
         self.actions['deploy'].append(deploy)
-        logging.warning('TODO: CFN deploy')
+        self.pipe.add_stage(
+            stage_name="Deploy",
+            actions=self.actions['deploy']
+        )
 
     @staticmethod
     def env(environment_variables: dict):

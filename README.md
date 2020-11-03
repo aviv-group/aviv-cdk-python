@@ -8,19 +8,56 @@ Requires:
 
 - Python >= 3.6
 - pip
-- cdk >= 1.68
-- access to AWS
-
-In a terminal:
 
 ```sh
 pip install aviv-cdk
 ```
 
-## Develop
+Extras:
+
+- cicd
+- nextstep
+- data
+
+## Build, distrib & release
+
+_Requires __twine__ to be installed (`pip install twine`) and credentials to upload a new verison to pypi._
 
 ```sh
-git clone https://github.com/aviv-group/aviv-cdk-python
+python3 setup.py sdist bdist_wheel
+# test distrib
+python3 -m twine upload --repository testpypi dist/*
+```
+
+## Included CDK apps / samples
+
+### CICD
+
+`cdk -a 'python3 cicd.py' ...`
+
+_requires_:
+
+- buildspec.yml
+
+### IAM Idp
+
+`cdk -a 'python3 app_idp.py' ...`
+
+_requires_:
+
+- cfn_resources.zip
+
+## Develop and contribute :)
+
+Requirements:
+
+- Pipenv
+- AWS cdk client
+- [optional] docker
+- [optional] AWS codebuild docker image (standard >= 4.0)
+
+```sh
+git clone https://github.com/aviv-group/aviv-cdk-python && cd aviv-cdk-python
 pipenv install -d -e .
 ```
 
@@ -28,6 +65,7 @@ pipenv install -d -e .
 
 ```sh
 # Build layer for release
+
 pip install -r lambdas/cfn_resources/requirements.txt -t build/layers/cfn_resources/
 (cd build/layers/cfn_resources/ &&  zip -q -r ../../artifacts-cfn_resources.zip .)
 
@@ -35,12 +73,12 @@ pip install -r lambdas/cfn_resources/requirements.txt -t build/layers/cfn_resour
 codebuild_build.sh -i aws/codebuild/standard:4.0 -a build
 ```
 
-## Distrib & release
+### Test
+
+Requires: pytest
 
 ```sh
-python3 setup.py sdist bdist_wheel
-# test distrib
-python3 -m twine upload --repository testpypi dist/*
+pipenv run pytest -v tests/
 ```
 
 ## Contribute

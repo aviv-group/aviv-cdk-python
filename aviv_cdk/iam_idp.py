@@ -25,7 +25,8 @@ class IAMIdpSAML(CDKLambda):
         """
         rdir = sys.prefix + '/share/aviv-cdk/iam-idp/'
         if not cfn_lambda:
-            cfn_lambda = rdir + 'saml.py'
+            p = os.path.dirname(os.path.dirname(__file__))
+            cfn_lambda = p + '/lambdas/iam_idp/saml.py'
         lambda_attrs=dict(
                 code=aws_lambda.InlineCode(CDKLambda._code_inline(cfn_lambda)),
                 handler='index.handler',

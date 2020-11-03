@@ -1,5 +1,4 @@
 import os
-import yaml
 import logging
 from aws_cdk import (
     aws_codebuild as cb,
@@ -34,7 +33,7 @@ class Pipelines(core.Construct):
         'sources': [],
         'builds': [],
         'build_extras': [],
-        'deploy': []
+        'deploy': {}
     }
 
     def __init__(self, scope, id, github_config: dict, project_config: dict):
@@ -105,15 +104,18 @@ class Pipelines(core.Construct):
             )
         if 'action_name' not in deploy_config:
             deploy_config['action_name']="Deploy-{}".format(deploy_config['stack_name'])
+
         deploy = cpa.CloudFormationCreateUpdateStackAction(
             admin_permissions=True,
             extra_inputs=self.artifacts['builds'],
             **deploy_config
         )
-        self.actions['deploy'].append(deploy)
+        # self.actions['deploy'][deploy_config['stack_name']].append(deploy)
+        self.actions['deploy'][deploy_config['stack_name']] = [deploy]
+        # TODO: decorelate staging?
         self.pipe.add_stage(
-            stage_name="Deploy",
-            actions=self.actions['deploy']
+            stage_name="Deploy-{}".format(deploy_config['stack_name']),
+            actions=self.actions['deploy'][deploy_config['stack_name']]
         )
 
     @staticmethod
@@ -125,6 +127,8 @@ class Pipelines(core.Construct):
     
     @staticmethod
     def load_buildspec(specfile):
+        import yaml
+
         with open(specfile, encoding="utf8") as fp:
             bsfile = fp.read()
             bs = yaml.safe_load(bsfile)

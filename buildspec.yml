@@ -3,6 +3,7 @@ version: 0.2
 env:
   git-credential-helper: yes
   variables:
+    ENV: test
     PIP_FLAGS: --disable-pip-version-check --quiet --no-warn-conflicts
 
 phases:
@@ -17,9 +18,6 @@ phases:
   pre_build:
     commands:
       - pip install ${PIP_FLAGS} .[cicd]
-      # Build cfn_resources layer
-      - pip install ${PIP_FLAGS} -r lambdas/cfn_resources/requirements.txt -t build/layers/cfn_resources/
-      - (cd build/layers/cfn_resources/ &&  zip -q -r ../../artifacts-cfn_resources.zip .)
   build:
     commands:
       - |
@@ -31,17 +29,17 @@ phases:
       - echo Build done for ${TAG}
   post_build:
     commands:
+      - \[ "${ENV}" == "prod"\] && TNAME="pypi" || TNAME="testpypi"
       - |
         cat << EOF > ~/.pypirc
-        [pypi]
+        [${TNAME}]
         username = __token__
         password = ${PYPI_TOKEN}
         EOF
-      - |
         if [ "$TAG" != "master" ]; then
           echo Releasing aviv-cdk@${TAG}
           pip install ${PIP_FLAGS} twine;
-          python3 -m twine upload --repository pypi dist/*
+          python3 -m twine upload --repository ${TNAME} dist/*
         fi
 
 artifacts:
@@ -49,14 +47,6 @@ artifacts:
     - '**/*'
   base-directory: cdk.out/
   discard-paths: no
-  # Artifact for cfn_resources layer
-  secondary-artifacts:
-    cfn_resources:
-      files:
-        - '**/*'
-      name: cfn_resources-$(date +%Y-%m-%d)
-      base-directory: build/layers/cfn_resources/
-      discard-paths: no
 
 cache:
   paths:

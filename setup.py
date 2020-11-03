@@ -16,12 +16,12 @@ setuptools.setup(
     packages=setuptools.find_packages(
         include=['aviv_cdk']
     ),
-    data_files=[
-        ("share/aviv-cdk/iam-idp/", [
-            "lambdas/cfn_resources/requirements.txt",
-            "lambdas/iam_idp/saml.py"
-        ]),
-    ],
+    package_data={
+        "lambdas": [
+            "cfn_resources/requirements.txt",
+            "iam_idp/saml.py"
+        ]
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
@@ -38,7 +38,6 @@ setuptools.setup(
    ],
     extras_require={
         "cicd": [
-            "aws-cdk-pipelines",
             "aws-cdk-aws-cloudformation",
             "aws-cdk-aws-codebuild",
             "aws-cdk-aws-codecommit",
@@ -46,6 +45,10 @@ setuptools.setup(
             "aws-cdk-aws-codepipeline-actions",
             "aws-cdk-aws-codestarconnections",
             "pyyaml"
+        ],
+        "nextstep": [
+            "aws-cdk-aws-stepfunctions",
+            "aws-cdk-aws-stepfunctions-tasks"
         ],
         "data": ["aws-cdk-glue", "aws-cdk-athena"]
     },

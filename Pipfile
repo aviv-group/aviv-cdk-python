@@ -10,3 +10,6 @@ pyyaml = "*"
 
 [dev-packages]
 aviv-cdk = {editable = true, extras = ["cicd"], path = "."}
+pytest = "*"
+pyyaml = "*"
+aws-cdk-aws-stepfunctions-tasks = "*"

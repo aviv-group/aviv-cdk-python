@@ -13,6 +13,8 @@ ssm_path = os.environ.get('SSM_PATH', '/aviv/ace/github/connection/aviv-group')
 
 app = core.App()
 
+TAGS = {tag: app.node.try_get_context(tag) for tag in ['environment', 'organisation', 'team', 'scope', 'application']}
+
 cicd = core.Stack(app, 'aviv-cdk-cicd', env=core.Environment(account='605901617242', region='eu-west-1'))
 pipe = pipelines.Pipelines(
     cicd, 'aviv-cdk-cicd',
@@ -24,6 +26,7 @@ pipe = pipelines.Pipelines(
     ),
     project_config=dict(
         environment_variables=dict(
+            PYPI=app.node.try_get_context('pypi'),
             PYPI_TOKEN=core.SecretValue.secrets_manager(secret_path, json_field='PYPI_TOKEN')
         ),
         build_spec='buildspec.yml'

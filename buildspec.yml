@@ -3,7 +3,7 @@ version: 0.2
 env:
   git-credential-helper: yes
   variables:
-    ENV: test
+    PYPI: testpypi
     PIP_FLAGS: --disable-pip-version-check --quiet --no-warn-conflicts
 
 phases:
@@ -24,22 +24,20 @@ phases:
         if [ "$TAG" != "master" ]; then
           python3 setup.py sdist bdist_wheel
         fi
-      - cdk synth
     finally:
       - echo Build done for ${TAG}
   post_build:
     commands:
-      - \[ "${ENV}" == "prod"\] && TNAME="pypi" || TNAME="testpypi"
       - |
         cat << EOF > ~/.pypirc
-        [${TNAME}]
+        [${PYPI}]
         username = __token__
         password = ${PYPI_TOKEN}
         EOF
         if [ "$TAG" != "master" ]; then
           echo Releasing aviv-cdk@${TAG}
           pip install ${PIP_FLAGS} twine;
-          python3 -m twine upload --repository ${TNAME} dist/*
+          python3 -m twine upload --repository ${PYPI} dist/*
         fi
 
 artifacts:

@@ -43,7 +43,7 @@ phases:
 artifacts:
   files:
     - '**/*'
-  base-directory: cdk.out/
+  base-directory: build/
   discard-paths: no
 
 cache:

@@ -3,6 +3,7 @@
     "language": "python",
     "versionReporting": false,
     "context": {
+        "pypi": "pypi",
         "organisation": "aviv",
         "application": "aviv-cdk",
         "team": "gtt",

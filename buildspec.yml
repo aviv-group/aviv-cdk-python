@@ -10,22 +10,16 @@ phases:
   install:
     runtime-versions:
       python: 3.8
-      nodejs: 12
     commands:
-      - npm install -g aws-cdk
       - pip install ${PIP_FLAGS} --upgrade pip aws-sam-cli awscli
       - TAG=$(git name-rev --name-only HEAD | cut -d/ -f2)
-  pre_build:
-    commands:
-      - pip install ${PIP_FLAGS} .[cicd]
+
   build:
     commands:
-      - |
-        if [ "$TAG" != "master" ]; then
-          python3 setup.py sdist bdist_wheel
-        fi
+      - python3 setup.py sdist bdist_wheel
     finally:
       - echo Build done for ${TAG}
+
   post_build:
     commands:
       - |

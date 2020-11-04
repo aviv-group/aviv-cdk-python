@@ -1,7 +1,3 @@
-import os
-import sys
-import logging
-from . import __load_yaml
 from aws_cdk import (
     aws_lambda,
     aws_stepfunctions as sfn,
@@ -21,53 +17,39 @@ class Stepfunctions(core.Construct):
             start = sfn.Pass(self, 'Pass')
         self.start = start
 
-    def machine(self, timeout: int=1):
+    def machine(self, name: str='stateMachine', timeout: int=1):
         self.statemachine = sfn.StateMachine(
-            self, 'stateMachine',
+            self, name,
             definition=self.start,
             timeout=core.Duration.minutes(timeout)
         )
         return self.statemachine
 
-    def _parallel(self):
-        return sfn.Parallel(
-            self, 'parallel'
-        )
-        for branch in branches:
-            self.parallel.branch(
-                self._invoke(what, branch)
-            )
-        # return self.parallel
+    # def _parallel(self):
+    #     return sfn.Parallel(
+    #         self, 'parallel'
+    #     )
 
-    def _choice(self):
-        return sfn.Choice(
-            self, 'choice'
-        )
+    # def _choice(self):
+    #     return sfn.Choice(
+    #         self, name, in
+    #     )
 
     def _wait(self, path:str="$.wait_time"):
-        return sfn.Wait(self, 'waiter', time=sfn.WaitTime.seconds_path(path=path))
-
-    def _invoke(self, what: str, name: str="n"):
-        return sfn_tasks.LambdaInvoke(
-            self, 'i_{}_{}'.format(what, name),
-            lambda_function=self._function(what, name),
-            output_path='$.Payload'
+        return sfn.Wait(
+            self, 'waiter',
+            time=sfn.WaitTime.seconds_path(path=path)
         )
 
-
-    def _function(self, what: str, name: str, code: aws_lambda.Code=None, handler='index.handler'):
-        if not code:
-            code = aws_lambda.Code.inline("""import logging
-import boto3
-
-def handler(context, event):
-    logging.error("{}".format(event))
-    return {"status": "ok", "id": 1, "data": {"cost": 7}}
-""")
+    def _invoke_lambda(self, name: str, code: aws_lambda.Code, handler: str, runtime=aws_lambda.Runtime.PYTHON_3_7):
         fx = aws_lambda.Function(
-            self, '{}_{}'.format(what, name),
+            self, "fxi_{}".format(name),
             code=code,
             handler=handler,
-            runtime=aws_lambda.Runtime.PYTHON_3_7
+            runtime=runtime
         )
-        return fx
+        return sfn_tasks.LambdaInvoke(
+            self, "{}".format(name),
+            lambda_function=fx,
+            output_path='$.Payload'
+        )

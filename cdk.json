@@ -6,6 +6,7 @@
         "organisation": "aviv",
         "application": "aviv-cdk",
         "team": "gtt",
+        "scope": "tooling",
         "environment": "dev"
     }
   }

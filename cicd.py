@@ -25,11 +25,10 @@ pipe = pipelines.Pipelines(
         branch='master'
     ),
     project_config=dict(
-        environment_variables=dict(
+        environment_variables=pipelines.Pipelines.env(dict(
             PYPI=app.node.try_get_context('pypi'),
             PYPI_TOKEN=core.SecretValue.secrets_manager(secret_path, json_field='PYPI_TOKEN')
-        ),
-        build_spec='buildspec.yml'
+        ))
     )
 )
 

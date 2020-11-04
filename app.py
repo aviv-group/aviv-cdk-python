@@ -1,9 +1,11 @@
-import os
-from aws_cdk import core
-from aviv_cdk import (
-    stepfunctions,
-    cdk_lambda
+from aws_cdk import (
+    aws_ssm as ssm,
+    core
 )
+from aviv_cdk import (
+    __version__
+)
+import aviv_cdk
 
 app = core.App()
 
@@ -11,7 +13,11 @@ TAGS = {tag: app.node.try_get_context(tag) for tag in ['environment', 'organisat
 
 stack = core.Stack(app, 'stack', tags=TAGS)
 
-stack.sfn = stepfunctions.Stepfunctions(stack, 'step')
+acdkversion = ssm.StringParameter(
+    stack, 'aviv-cdk-version',
+    string_value=aviv_cdk.__version__,
+    parameter_name='/aviv/cdk/python/version'
+)
 
 
 app.synth()

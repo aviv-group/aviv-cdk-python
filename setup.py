@@ -27,8 +27,16 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    entry_points={
+        'console_scripts': [
+            'aviv-aws=bin.aws_local:cli',
+            'aviv-cdk-sfn-extract=bin.sfn_extract:cli'
+        ],
+    },
     install_requires=[
          "boto3>=1.14",
+         "click>=7.1",
+         "aws-parsecf>=1.1"
          "aws-cdk-core>=1.68",
          "aws-cdk-aws-iam",
          "aws-cdk-aws-s3",

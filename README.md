@@ -13,11 +13,15 @@ Requires:
 pip install aviv-cdk
 ```
 
-Extras:
+Extras (provides additionnal libraries, in order to build some constructs):
 
-- cicd
-- nextstep
-- data
+- `cicd` - CDK codebuild/deploy
+- `nextstep` - Stepfunctions & co
+- `data` - data related stuff
+
+```sh
+pip install aviv-cdk[EXTRA]
+```
 
 ## Build, distrib & release
 
@@ -46,6 +50,13 @@ _requires_:
 _requires_:
 
 - cfn_resources.zip
+
+## Command line tools
+
+- [aviv-aws](bin/aws_local.py) (WIP)  
+  Helper to run AWS stuff locally (CDK / SAM / StepFunctionsLocal)
+- [aviv-cdk-sfn-extract](bin/sfn_extract.py)  
+  Extract a StateMachine from a CFN template
 
 ## Develop and contribute :)
 

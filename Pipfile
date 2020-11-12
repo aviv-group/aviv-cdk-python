@@ -4,12 +4,9 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-aws-cdk-core = ">=1.68"
-boto3 = "*"
-pyyaml = "*"
+aviv-cdk = {editable = true, path = "."}
 
 [dev-packages]
-aviv-cdk = {editable = true, extras = ["cicd"], path = "."}
+aviv-cdk = {editable = true, extras = ["cicd", "nextstep"], path = "."}
 pytest = "*"
 pyyaml = "*"
-aws-cdk-aws-stepfunctions-tasks = "*"

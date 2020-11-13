@@ -1,6 +1,8 @@
 import os
 from aws_cdk import (
     aws_ssm as ssm,
+    aws_events_targets,
+    aws_events,
     aws_lambda,
     core
 )
@@ -44,6 +46,22 @@ class CDKLambda(core.Construct):
             if self._layer:
                 core.CfnOutput(self, 'LayerArn', value=self._layer.from_layer_version_arn)
 
+    def _cron(self, event_name: str='Rule', event: dict=None, cron: aws_events.Schedule=None):
+        # See https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html
+        if not cron:
+            cron = aws_events.Schedule.cron(
+                minute='42',
+                hour='23',
+                month='*',
+                week_day='SUN',
+                year='*'
+            )
+        rule = aws_events.Rule(self, event_name, schedule=cron)
+        target = aws_events_targets.LambdaFunction(
+            self._lambda,
+            event=aws_events.RuleTargetInput.from_object(event)
+        )
+        return rule.add_target(target)
 
     @staticmethod
     def _code_inline(filepath):

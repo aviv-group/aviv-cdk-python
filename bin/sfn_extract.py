@@ -26,11 +26,7 @@ def cli(template: str):
         if r['Type'] != 'AWS::StepFunctions::StateMachine':
             continue
         # Fixup non existing local attributes
-        definition = r['Properties']['DefinitionString']
-        if definition.startswith('UNKNOWN ATT: '):
-            definition = definition.replace("UNKNOWN ATT: ", "")
-        if definition.endswith('.Arn'):
-            definition = definition.replace(".Arn", "")
+        definition = r['Properties']['DefinitionString'].replace("UNKNOWN ATT: ", "").replace(".Arn", "")
         # print("{}\n{}".format(k, definition))
         print(definition)
 

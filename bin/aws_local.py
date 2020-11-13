@@ -29,9 +29,10 @@ def installJar(url: str=AWS_STEPFUNCTIONS_JAR_DL):
     # check it
     os.system("java -jar {} -v".format(AWS_STEPFUNCTIONS_JAR))
 
-def popen(cmd):
-    cmd = shlex.split(cmd)
-    p = subprocess.Popen(cmd)
+def popen(cmd, **args):
+    if not 'shell' in args or args['shell'] is not True:
+        cmd = shlex.split(cmd)
+    p = subprocess.Popen(cmd, **args)
     PROCESSES.append(p)
     return p
 
@@ -63,51 +64,6 @@ def cli():
     click.secho("Aviv AWS toolkit", bold=True)
 
 
-@click.option('--template', '-t', type=click.types.STRING, default='template.json')
-@click.option('--synth', '-s', help='Do a fresh cdk synth', is_flag=True, default=False)
-@click.option('--sfn', '-S', help='AWS StepFunctionsLocal', is_flag=True, default=False)
-@click.option('--sfn-jar', help='AWS StepFunctionsLocal.jar file path', type=click.types.STRING, default=AWS_STEPFUNCTIONS_JAR)
-@click.option('--api', '-a', help='SAM local start-api', is_flag=True, default=False)
-@click.option('--debug', '-d', is_flag=True, default=False)
-@cli.command(short_help='AWS local backends')
-def daemons(template, synth, sfn, sfn_jar, api, debug):
-    click.secho("=== Run local env == ", bold=True)
-
-    click.secho("Template: {}\n\n".format(template), dim=True)
-
-    if synth:
-        os.system('cdk synth --no-staging')
-
-    args = " --debug" if debug else ""
-
-    popen("sam local start-lambda {} -t {}".format(args, template))
-    print("SAM start-lambda: {}".format(PROCESSES[-1].pid))
-    for i in range(10):
-        if PROCESSES[-1].poll():
-            logging.error("start-lambda FAILED pid:{}".format(PROCESSES[-1].pid))
-            killAll()
-            exit(42)
-        time.sleep(.5)
-    print("    start-lambda: {} -> {}\n".format(PROCESSES[-1].pid, PROCESSES[-1].poll()))
-
-    if api:
-        popen("sam local start-api {} -t {}".format(args, template))
-        time.sleep(5)
-        print("\nSAM start-api {}\n".format(PROCESSES[-1].pid))
-
-    if sfn:
-        popen('java -jar {} --lambda-endpoint {}'.format(getJar(sfn_jar), 'http://127.0.0.1:3001/'))
-        time.sleep(5)
-        print("\nSFN launched {}\n".format(PROCESSES[-1].pid))
-
-    input('Hit [anykey] to kill all processes')
-
-
-    for p in PROCESSES:
-        p.kill()
-    click.secho("\nAll done byebye!\n", bold=True)
-
-
 @cli.command(short_help='Install AWS stuff locally')
 def install():
     click.secho("AWS tools install and setup helper")
@@ -125,10 +81,56 @@ output = json
 region = eu-west-1
 EOF
 """)
-        # installJar()
 
 
+@click.argument('template', type=click.types.STRING, default='template.json')
+@click.option('--profile', '-p', type=click.types.STRING, default='local')
+@click.option('--synth', '-s', help='Do a fresh cdk synth', is_flag=True, default=False)
+@click.option('--sfn', '-S', help='AWS StepFunctionsLocal', is_flag=True, default=False)
+# @click.option('--sfn-jar', help='AWS StepFunctionsLocal.jar file path', type=click.types.STRING, default=AWS_STEPFUNCTIONS_JAR)
+@click.option('--api', '-a', help='SAM local start-api', is_flag=True, default=False)
+@click.option('--debug', '-d', is_flag=True, default=False)
+@cli.command(short_help='AWS local backends')
+def daemons(template, profile, synth, sfn, api, debug):
+    click.secho("=== Run local env == ", bold=True)
 
+    click.secho("Template: {}\n\n".format(template), dim=True)
+
+    if synth:
+        os.system('cdk synth --no-staging')
+
+    args = " --profile {}".format(profile)
+    if debug:
+        args += " --debug"
+
+    popen("sam local start-lambda {} -t {}".format(args, template))
+    print("SAM start-lambda: {}".format(PROCESSES[-1].pid))
+    for i in range(10):
+        if PROCESSES[-1].poll():
+            logging.error("start-lambda FAILED pid:{}".format(PROCESSES[-1].pid))
+            killAll()
+            exit(42)
+        time.sleep(.5)
+    print("    start-lambda: {} -> {}\n".format(PROCESSES[-1].pid, PROCESSES[-1].poll()))
+
+    if api:
+        popen("sam local start-api {} -t {}".format(args, template))
+        time.sleep(5)
+        print("\nSAM start-api {}\n".format(PROCESSES[-1].pid))
+
+    if sfn:
+        popen("docker run -ti --env-file .env.sfn-local -p 8083:8083 amazon/aws-stepfunctions-local")
+        # os.system("docker run -ti --env-file .env.sfn-local -p 8083:8083 amazon/aws-stepfunctions-local")
+        # popen('java -jar {} --lambda-endpoint {}'.format(getJar(sfn_jar), 'http://127.0.0.1:3001/'))
+        # time.sleep(5)
+        # print("\nSFN launched {}\n".format(PROCESSES[-1].pid))
+
+    print('Hit [CTRL]-C to exit kill all processes')
+
+
+    for p in PROCESSES:
+        p.kill()
+    click.secho("\nAll done byebye!\n", bold=True)
 
 
 @click.argument('template', type=click.types.STRING, required=True, default='template.json')
@@ -138,10 +140,25 @@ EOF
 def sm(template, profile, debug):
     click.secho("=== StateMachine ===")
 
+    sfnargs = ' --profile {} --endpoint http://127.0.0.1:8083'.format(profile)
+    if debug:
+        sfnargs += " --debug"
+    os.system("aviv-cdk-sfn-extract {} | xargs -0 aws stepfunctions create-state-machine {} --name localstatem --role-arn 'arn:aws:iam::123456789012:role/DummyRole' --definition ".format(
+        template, sfnargs
+    ))
+    # Print state machine
+    # os.system("aws stepfunctions list-state-machines {}".format(sfnargs))
+    sm = "arn:aws:states:us-east-1:123456789012:stateMachine:localstatem"
+
+    if not input("Press [enter] to start state machine "):
+        os.system("aws stepfunctions start-execution {} --state-machine {}".format(sfnargs, sm))
+
+    if not input("Press [enter] to delete state machine "):
+        os.system("aws stepfunctions delete-state-machine {} --state-machine-arn {}".format(sfnargs, sm))
+    # print("had {}".format(outs))
 
 
-
-@click.option('--template', '-t', type=click.types.STRING, default='template.json')
+@click.argument('template', type=click.types.STRING, required=True, default='template.json')
 @click.option('--profile', '-p', type=click.types.STRING, default='local')
 @click.option('--debug', '-d', is_flag=True, default=False)
 @cli.command(short_help='Run stuff locally')
@@ -169,6 +186,7 @@ def run(template, profile, debug):
             ))
         else:
             print("NAY: {}".format(line))
+
 
 if __name__ == "__main__":
     cli()

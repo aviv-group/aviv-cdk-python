@@ -41,15 +41,16 @@ class Stepfunctions(core.Construct):
             time=sfn.WaitTime.seconds_path(path=path)
         )
 
-    def _invoke_lambda(self, name: str, code: aws_lambda.Code, handler: str, runtime=aws_lambda.Runtime.PYTHON_3_7):
-        fx = aws_lambda.Function(
-            self, "fxi_{}".format(name),
-            code=code,
-            handler=handler,
-            runtime=runtime
-        )
+    def _invoke_lambda(self, name: str, fx: aws_lambda.IFunction=None, code: aws_lambda.Code=None, handler: str=None, runtime=aws_lambda.Runtime.PYTHON_3_7):
+        if not fx:
+            fx = aws_lambda.Function(
+                self, "fxi_{}".format(name),
+                code=code,
+                handler=handler,
+                runtime=runtime
+            )
         return sfn_tasks.LambdaInvoke(
             self, "{}".format(name),
-            lambda_function=fx,
-            output_path='$.Payload'
+            lambda_function=fx
+            # output_path='$.Payload',
         )

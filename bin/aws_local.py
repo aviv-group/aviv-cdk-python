@@ -92,40 +92,48 @@ EOF
 @click.option('--debug', '-d', is_flag=True, default=False)
 @cli.command(short_help='AWS local backends')
 def daemons(template, profile, synth, sfn, api, debug):
-    click.secho("=== Run local env == ", bold=True)
-
-    click.secho("Template: {}\n\n".format(template), dim=True)
-
-    if synth:
-        os.system('cdk synth --no-staging')
-
+    click.secho(" >  SFN local StateMachine", bold=True)
     args = " --profile {}".format(profile)
     if debug:
         args += " --debug"
+        click.secho("Template: {}".format(template), dim=True)
+        if profile:
+            click.secho("Profile: {}".format(profile), dim=True)
+        print()
+
+    if synth:
+        click.secho("CDK synth refreshing templates", dim=True)
+        os.system('cdk synth {} --no-staging'.format(args))
+        print()
 
     popen("sam local start-lambda {} -t {}".format(args, template))
-    print("SAM start-lambda: {}".format(PROCESSES[-1].pid))
+    click.secho("SAM local start-lambda", dim=True)
     for i in range(10):
         if PROCESSES[-1].poll():
             logging.error("start-lambda FAILED pid:{}".format(PROCESSES[-1].pid))
             killAll()
             exit(42)
         time.sleep(.5)
-    print("    start-lambda: {} -> {}\n".format(PROCESSES[-1].pid, PROCESSES[-1].poll()))
 
     if api:
+        click.secho("\nStarting AWS SAM Local API...", dim=True)
         popen("sam local start-api {} -t {}".format(args, template))
         time.sleep(5)
-        print("\nSAM start-api {}\n".format(PROCESSES[-1].pid))
+        if PROCESSES[-1].poll():
+            logging.error("sam local start-api - pid: {}\n".format(PROCESSES[-1].pid))
 
     if sfn:
-        popen("docker run -ti --env-file .env.sfn-local -p 8083:8083 amazon/aws-stepfunctions-local")
-        # os.system("docker run -ti --env-file .env.sfn-local -p 8083:8083 amazon/aws-stepfunctions-local")
-        # popen('java -jar {} --lambda-endpoint {}'.format(getJar(sfn_jar), 'http://127.0.0.1:3001/'))
-        # time.sleep(5)
-        # print("\nSFN launched {}\n".format(PROCESSES[-1].pid))
+        click.secho("\nStarting AWS SFN Local...", dim=True)
+        click.secho('Hit [CTRL]-C to exit and kill all processes\n', bold=True)
 
-    print('Hit [CTRL]-C to exit kill all processes')
+        envstr = ''
+        for e, v in dict(
+            SAM_CLI_TELEMETRY=0,
+            AWS_ACCOUNT_ID="123456789012",
+            AWS_DEFAULT_REGION="us-east-1",
+            LAMBDA_ENDPOINT="http://host.docker.internal:3001/").items():
+            envstr += ' --env {}={}'.format(e, v)
+        os.system("docker run -ti {} -p 8083:8083 amazon/aws-stepfunctions-local".format(envstr))
 
 
     for p in PROCESSES:
@@ -133,30 +141,51 @@ def daemons(template, profile, synth, sfn, api, debug):
     click.secho("\nAll done byebye!\n", bold=True)
 
 
+def _help_sm():
+    for i, l in enumerate(['create', 'start', 'delete']):
+        click.secho(" [{}] - {} SM".format(i + 1, l))
+    click.secho(" [0] - quit", dim=True)
+
 @click.argument('template', type=click.types.STRING, required=True, default='template.json')
 @click.option('--profile', '-p', type=click.types.STRING, default='local')
 @click.option('--debug', '-d', is_flag=True, default=False)
 @cli.command(short_help='Run stuff locally')
 def sm(template, profile, debug):
-    click.secho("=== StateMachine ===")
+    click.secho(" >  run SFN StateMachine")
 
     sfnargs = ' --profile {} --endpoint http://127.0.0.1:8083'.format(profile)
     if debug:
         sfnargs += " --debug"
-    os.system("aviv-cdk-sfn-extract {} | xargs -0 aws stepfunctions create-state-machine {} --name localstatem --role-arn 'arn:aws:iam::123456789012:role/DummyRole' --definition ".format(
-        template, sfnargs
-    ))
+
+    sfnargscreate = sfnargs + " --name localstatem --role-arn 'arn:aws:iam::123456789012:role/DummyRole'"
+
     # Print state machine
     # os.system("aws stepfunctions list-state-machines {}".format(sfnargs))
     sm = "arn:aws:states:us-east-1:123456789012:stateMachine:localstatem"
 
-    if not input("Press [enter] to start state machine "):
-        os.system("aws stepfunctions start-execution {} --state-machine {}".format(sfnargs, sm))
+    line = True
+    while line != 'exit':
+        if line == '0':
+            break
+        elif line == '1':
+            os.system("aviv-cdk-sfn-extract {} | xargs -0 aws stepfunctions create-state-machine {} --definition ".format(
+                template, sfnargscreate
+            ))
+        elif line == '2':
+            os.system("aws stepfunctions start-execution {} --state-machine {}".format(sfnargs, sm))
+        elif line == '3':
+            os.system("aws stepfunctions delete-state-machine {} --state-machine-arn {}".format(sfnargs, sm))
+        else:
+            _help_sm()
+        line = input("AVIV AWS:sm $ ")
 
-    if not input("Press [enter] to delete state machine "):
-        os.system("aws stepfunctions delete-state-machine {} --state-machine-arn {}".format(sfnargs, sm))
-    # print("had {}".format(outs))
+    click.secho("\nAll gone byebye!", dim=True)
 
+
+def _help_run(lambdas: list):
+    print("Choices:")
+    for i, l in enumerate(lambdas):
+        print(" [{}] - {}".format(i, l))
 
 @click.argument('template', type=click.types.STRING, required=True, default='template.json')
 @click.option('--profile', '-p', type=click.types.STRING, default='local')
@@ -165,27 +194,18 @@ def sm(template, profile, debug):
 def run(template, profile, debug):
     click.secho("=== Local invoke ===")
     lbds = getLambdas(template)
-    print("Choices:\n{}".format(
-        "\n".join(["[{}] {}".format(i, l) for i, l in enumerate(lbds)])
-    ))
     
     line = True
     while line != 'exit':
-        line = input("AVIV AWS:run $ ")
         if line.isdigit() and lbds[int(line)]:
-            os.system(
-                "echo {{\"status\": \"start\"}} | sam local invoke --profile {} --template {} {}".format(
-                    profile, template, lbds[int(line)]
-                )
-            )
-            continue
-
-        if not line:
-            print("Choices:\n{}".format(
-                "\n".join(["[{}] {}".format(i, l) for i, l in enumerate(lbds)])
+            os.system("echo {{\"status\": \"start\"}} | sam local invoke --profile {} --template {} {}".format(
+                profile, template, lbds[int(line)]
             ))
+        elif not line:
+            _help_run(lbds)
         else:
             print("NAY: {}".format(line))
+        line = input("AVIV AWS:run $ ")
 
 
 if __name__ == "__main__":

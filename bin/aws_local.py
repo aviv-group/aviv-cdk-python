@@ -163,7 +163,7 @@ def sm(template, profile, debug):
     smid = "arn:aws:states:us-east-1:123456789012:stateMachine:localstatem"
     execid="arn:aws:states:us-east-1:123456789012:execution:localstatem:0ade304c-9aa1-4c2f-90f0-4d86059XXXXX"
 
-    line = True
+    line = ''
     while line != 'exit':
         if line == '0':
             break
@@ -190,9 +190,10 @@ def sm(template, profile, debug):
 
 
 def _help_run(lambdas: list):
-    print("Choices:")
+    print("Run Lambda:")
     for i, l in enumerate(lambdas):
-        print(" [{}] - {}".format(i, l))
+        print(" [{}] - {}".format(i + 1, l))
+    click.secho(" [0] || [exit] - Exit", dim=True)
 
 @click.argument('template', type=click.types.STRING, required=True, default='template.json')
 @click.option('--profile', '-p', type=click.types.STRING, default='local')
@@ -202,18 +203,19 @@ def run(template, profile, debug):
     click.secho("=== Local invoke ===")
     lbds = getLambdas(template)
     
-    line = True
+    line = ''
     while line != 'exit':
-        if line.isdigit() and lbds[int(line)]:
+        if line == '0':
+            break
+        elif line.isdigit() and lbds[int(line) - 1]:
             os.system("echo {{\"status\": \"start\"}} | sam local invoke --profile {} --template {} {}".format(
-                profile, template, lbds[int(line)]
+                profile, template, lbds[int(line) - 1]
             ))
-        elif not line:
-            _help_run(lbds)
         else:
-            print("NAY: {}".format(line))
+            _help_run(lbds)
         line = input("AVIV AWS:run $ ")
 
+    click.secho("\nAll gone byebye!", dim=True)
 
 if __name__ == "__main__":
     cli()

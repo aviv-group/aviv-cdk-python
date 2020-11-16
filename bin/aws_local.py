@@ -142,9 +142,9 @@ def daemons(template, profile, synth, sfn, api, debug):
 
 
 def _help_sm():
-    for i, l in enumerate(['create', 'start', 'delete']):
-        click.secho(" [{}] - {} SM".format(i + 1, l))
-    click.secho(" [0] - quit", dim=True)
+    for i, l in enumerate(['- Create a StateMachine', '- Start it', '+ [EXECID] - Describe execution', '+ [EXECID] - Get exec. history']):
+        click.secho(" [{}] {}".format(i + 1, l))
+    click.secho(" [0] || [exit] - Delete StateMachine and exit", dim=True)
 
 @click.argument('template', type=click.types.STRING, required=True, default='template.json')
 @click.option('--profile', '-p', type=click.types.STRING, default='local')
@@ -160,8 +160,8 @@ def sm(template, profile, debug):
     sfnargscreate = sfnargs + " --name localstatem --role-arn 'arn:aws:iam::123456789012:role/DummyRole'"
 
     # Print state machine
-    # os.system("aws stepfunctions list-state-machines {}".format(sfnargs))
-    sm = "arn:aws:states:us-east-1:123456789012:stateMachine:localstatem"
+    smid = "arn:aws:states:us-east-1:123456789012:stateMachine:localstatem"
+    execid="arn:aws:states:us-east-1:123456789012:execution:localstatem:0ade304c-9aa1-4c2f-90f0-4d86059XXXXX"
 
     line = True
     while line != 'exit':
@@ -172,13 +172,20 @@ def sm(template, profile, debug):
                 template, sfnargscreate
             ))
         elif line == '2':
-            os.system("aws stepfunctions start-execution {} --state-machine {}".format(sfnargs, sm))
-        elif line == '3':
-            os.system("aws stepfunctions delete-state-machine {} --state-machine-arn {}".format(sfnargs, sm))
+            os.system("aws stepfunctions start-execution {} --state-machine {}".format(sfnargs, smid))
+            # TODO: capture SM execId (--output text | cut -f1)
+            # execid='arn:local:exec'
+        elif isinstance(line, str) and line.startswith('3 '):
+            execid = line[2:]
+            os.system("aws stepfunctions describe-execution {} --execution-arn {}".format(sfnargs, execid))
+        elif isinstance(line, str) and line.startswith('4 '):
+            execid = line[2:]
+            os.system("aws stepfunctions get-execution-history {} --execution-arn {}".format(sfnargs, execid))
         else:
             _help_sm()
         line = input("AVIV AWS:sm $ ")
 
+    os.system("aws stepfunctions delete-state-machine {} --state-machine-arn {}".format(sfnargs, smid))
     click.secho("\nAll gone byebye!", dim=True)
 
 

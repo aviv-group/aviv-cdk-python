@@ -36,7 +36,7 @@ class Pipelines(core.Construct):
         'deploy': {}
     }
 
-    def __init__(self, scope, id, github_config: dict, project_config: dict):
+    def __init__(self, scope, id, github_config: dict, project_config: dict=dict()):
         super().__init__(scope, id)
         self.bucket = s3.Bucket(self, 'bucket',
             removal_policy=core.RemovalPolicy.RETAIN,
@@ -62,22 +62,34 @@ class Pipelines(core.Construct):
             **project_config
         )
 
-    def _source(self, **github_config):
+    def _source(self, owner: str, repo: str, branch: str='master', connection: str=None, oauth: str=None):
+        """[summary]
+
+        Args:
+            owner (str): Github organization/user
+            repo (str): git repository url name
+            branch (str): git branch
+            connection (str): AWS codebuild connection_arn
+            oauth (str): Github oauth token
+        """
         artifact = cp.Artifact()
 
+        if not connection and not oauth:
+            raise SystemError("No credentials for Github provided")
+
         checkout = cpa.BitBucketSourceAction(
-            connection_arn=github_config['connection'],
-            action_name="Source-{}".format(github_config['branch']),
+            connection_arn=connection,
+            action_name="Source-{}".format(branch),
             output=artifact,
-            owner=github_config['owner'],
-            repo=github_config['repo'],
-            branch=github_config['branch'],
+            owner=owner,
+            repo=repo,
+            branch=branch,
             code_build_clone_output=True
         )
 
         self.artifacts['sources'].append(artifact)
         self.actions['sources'].append(checkout)
-        self.pipe.add_stage(stage_name='Source@{}'.format(github_config['repo']), actions=[checkout])
+        self.pipe.add_stage(stage_name='Source@{}'.format(repo), actions=[checkout])
 
     def _build(self, input, extra_inputs=[]):
         artifact = cp.Artifact()
@@ -97,26 +109,38 @@ class Pipelines(core.Construct):
             actions=self.actions['builds']
         )
 
-    def deploy(self, **deploy_config):
-        if 'template_path' not in deploy_config:
-            deploy_config['template_path'] = self.artifacts['builds'][0].at_path(
-                "cdk.out/{}.template.json".format(deploy_config['stack_name'])
+    def deploy(self, stack_name: str, *, template_path: str=None, action_name: str=None, stage_it: bool=True, **deploy_config):
+        """Deploy stage for AWS CodePipeline
+
+        Args:
+            stack_name (str): CDK/CFN stack name to deploy
+            template_path (str, optional): the generated CFN template path. Defaults to: 'stack_name'.template.json
+            action_name (str, optional): AWS Pipeline action name. Defaults to: deploy-'stack_name'
+            stage_it (bool, optional): Automagically stage this in pipeline. Defaults to True.
+        """
+        if not template_path:
+            template_path = self.artifacts['builds'][0].at_path(
+                "{}.template.json".format(stack_name)
             )
-        if 'action_name' not in deploy_config:
-            deploy_config['action_name']="Deploy-{}".format(deploy_config['stack_name'])
+        if not action_name:
+            action_name = "deploy-{}".format(stack_name)
 
         deploy = cpa.CloudFormationCreateUpdateStackAction(
             admin_permissions=True,
             extra_inputs=self.artifacts['builds'],
+            template_path=template_path,
+            action_name=action_name,
+            stack_name=stack_name,
             **deploy_config
         )
-        # self.actions['deploy'][deploy_config['stack_name']].append(deploy)
-        self.actions['deploy'][deploy_config['stack_name']] = [deploy]
-        # TODO: decorelate staging?
-        self.pipe.add_stage(
-            stage_name="Deploy-{}".format(deploy_config['stack_name']),
-            actions=self.actions['deploy'][deploy_config['stack_name']]
-        )
+        # Save deploy action
+        self.actions['deploy'][action_name] = [deploy]
+        # Stage it (execute deploy) in pipeline
+        if stage_it:
+            self.pipe.add_stage(
+                stage_name=action_name,
+                actions=self.actions['deploy'][action_name]
+            )
 
     @staticmethod
     def env(environment_variables: dict):

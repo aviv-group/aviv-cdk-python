@@ -134,12 +134,12 @@ class Pipelines(core.Construct):
             **deploy_config
         )
         # Save deploy action
-        self.actions['deploy'][action_name] = [deploy]
+        self.actions['deploy'][action_name] = deploy
         # Stage it (execute deploy) in pipeline
         if stage_it:
             self.pipe.add_stage(
                 stage_name=action_name,
-                actions=self.actions['deploy'][action_name]
+                actions=[self.actions['deploy'][action_name]]
             )
 
     @staticmethod

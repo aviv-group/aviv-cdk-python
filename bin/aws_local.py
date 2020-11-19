@@ -68,8 +68,8 @@ def cli():
 def install():
     click.secho("AWS tools install and setup helper")
     click.secho("Press 'y' + [enter] to install or just [enter] to pass\n", dim=True)
-    if input("- Install AWS StepFunctionsLocal? ") == 'y':
-        installJar()
+    # if input("- Install AWS StepFunctionsLocal Jar? ") == 'y':
+    #     installJar()
 
     if input("- Create a fake [local] profile in ~/.aws/credentials? ") == 'y':
         print("""
@@ -81,6 +81,19 @@ output = json
 region = eu-west-1
 EOF
 """)
+
+    if input("- Install AWS codebuild local? ") == 'y':
+        codebuild_url = 'https://raw.githubusercontent.com/aws/aws-codebuild-docker-images/master/local_builds/codebuild_build.sh'
+        os.system('cd /usr/local/bin && wget {} && chmod +x codebuild_build.sh'.format(codebuild_url))
+
+
+@cli.command(short_help='AWS local codebuild')
+def build():
+    cbdockervs = 'aws/codebuild/standard:4.0'
+    args = ' -i {} -a build/ -s .'.format(cbdockervs)
+    # if os.path.exists('.env'):
+    #     args += ' -e .env'
+    os.system('echo codebuild_build.sh {}'.format(args))
 
 
 @click.argument('template', type=click.types.STRING, default='template.json')

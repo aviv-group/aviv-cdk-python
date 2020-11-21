@@ -1,25 +1,15 @@
-# from aws_cdk import (
-#     aws_ssm as ssm,
-#     aws_secretsmanager as sm,
-#     core
-# )
+import os
+import subprocess
 
-# # Outside contexts/stacks
-# # app.node.try_get_context('CONTEXT_KEY')
+def __auto_github():
+    dirp =  os.path.dirname(os.path.dirname(__file__))
+    # os.chdir(dirp)
 
-# class dummy(core.Construct):
-#     def __init__(self, scope: core.Construct, id: str):
-#         super().__init__(scope, id)
+    # output = subprocess.check_output("pwd; ls -la", shell=True)
+    # print(output)
+    repo_dir = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()  #[0].rstrip()
+    print(str(repo_dir[0].decode('UTF-8')))
 
-#         # From SSM
-#         SSMVALUE = ssm.StringParameter.value_from_lookup(self, parameter_name='/SSM/PARAM/PATH')
+    output = subprocess.check_output("git name-rev --name-only HEAD", shell=True)
 
-#         # or
-#         account = '424242'
-#         region = 'eu-west-1'
-#         ssmp = "ssm:account={}:parameterName=/aviv/cfn/custom/layer:region={}".format(account, region)
-#         self.node.try_get_context(ssmp)
-#         app.node.try_get_context(ssmp)
-
-#         # do not use unless you WANT to create a dependency between stacks
-#         core.Fn.import_value('CFN_STACK_EXPORT_VALUE')
+    print("got: {}".format(output))

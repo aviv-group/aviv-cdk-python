@@ -2,6 +2,7 @@ import os
 import logging
 import typing
 import constructs
+from . import __json_load as loadjson
 from aws_cdk import (
     aws_codebuild as cb,
     aws_codepipeline as cp,
@@ -12,9 +13,15 @@ from aws_cdk import (
     aws_kms,
     aws_ec2,
     aws_iam,
+    pipelines,
+    cloud_assembly_schema as cas,
+    cx_api,
     core
 )
 
+
+# Force CDK 'new' bootstrap/synth style
+os.environ['CDK_NEW_BOOTSTRAP'] = '1'
 
 def load_env(environment_variables: dict):
     envs = dict()
@@ -42,11 +49,47 @@ class GithubConnection(core.Construct):
         )
 
 
+class CdkPipeline(pipelines.CdkPipeline):
+
+    def __init__(self,
+        scope: constructs.Construct,
+        id: str,
+        *,
+        pipeline_name: str,
+        self_mutating: bool = False,
+        cloud_assembly_artifact: cp.Artifact = None,
+        cdk_cli_version: typing.Optional[str] = None,
+        code_pipeline: typing.Optional[cp.Pipeline] = None,
+        cross_account_keys: typing.Optional[bool] = None) -> None:
+
+        super().__init__(scope=scope, id=id, cloud_assembly_artifact=cloud_assembly_artifact, cdk_cli_version=cdk_cli_version,
+            code_pipeline=code_pipeline, cross_account_keys=cross_account_keys)
+
+    # def deploy_stack(
+    #     self,
+    #     name: str,
+    #     props: pipelines.DeployCdkStackActionProps):
+
+    #     # template_path =  "{}.template.json".format(stack_name), #template_path,
+    #     # cloud_assembly_input=self.artifacts['build'][0]
+    #     if not props:
+    #         # props = pipelines.DeployCdkStackActionOptions()
+    #         props = pipelines.DeployCdkStackActionProps()
+        
+    #     action = pipelines.DeployCdkStackAction(**props._values)
+
+    #     pipelines.AssetPublishingCommand(
+    #         'apublish', asset_id='we'
+    #     )
+        # logging.info(" -> Got assets from: {}".format(assets_path))
+
+
 class Pipeline(cp.Pipeline):
     bucket: aws_s3.IBucket
     key: aws_kms.IKey
+    name: str
     project: cb.PipelineProject
-    named_stages = ['source', 'build', 'deploy']
+    named_stages = ['source', 'build', 'publish', 'deploy']
     connection: typing.Dict[str, str]
     artifacts: typing.Dict[str, typing.Dict[str, typing.Union[cp.Artifact, typing.List[cp.Artifact]]]]
     actions: typing.Dict[str, typing.Dict[str, cpa.Action]]
@@ -54,55 +97,74 @@ class Pipeline(cp.Pipeline):
 
     def __init__(
         self, scope, id: str,
-        project_params: cb.PipelineProjectProps,
-        *,
         connection: typing.Dict[str, str]=None,
+        *,
+        pipe_role: aws_iam.IRole=None,
+        # project_props: cb.PipelineProjectProps=None,
+        bucket_props: aws_s3.BucketProps=None,
         artifact_bucket: aws_s3.IBucket=None,
         cross_account_keys: bool=None,
         cross_region_replication_buckets: typing.Dict[str, aws_s3.IBucket]=None,
         pipeline_name: str=None,
         restart_execution_on_update: bool=None,
         role: aws_iam.IRole=None,
-        pipe_role: aws_iam.IRole=None,
         stages: typing.List[cp.StageProps]=None) -> None:
 
+        # Default CDK Pipeline props
+        # Set some defaults
         self.connection = connection
-        self.artifacts = dict((sname, dict()) for sname in self.named_stages)
-        self.actions = dict((sname, dict()) for sname in self.named_stages)
+        self.name = pipeline_name if pipeline_name else '{}-pipe'.format(id)
 
-        logging.warning("Init pipeline: {}".format(pipeline_name))
+        # TODO: Review pipeline IAM role(s) scheme
+        self.pipe_role = pipe_role if pipe_role else Pipeline._role(scope, id + '-role')
 
-        if not pipeline_name:
-            pipeline_name = '{}-pipe'.format(id)
+        # Finish Aviv Pipeline setup
+        self._setup(scope, id, cross_account_keys=cross_account_keys, bucket_props=bucket_props)
+        if not artifact_bucket:
+            artifact_bucket = self.bucket
 
-        if pipe_role:
-            self.pipe_role = Pipeline._role(scope)
-            # Override role
-            role = self.pipe_role
-
+        logging.warning("Init pipeline: {}".format(self.name))
         super().__init__(
             scope, id,
             artifact_bucket=artifact_bucket,
             cross_account_keys=cross_account_keys,
             cross_region_replication_buckets=cross_region_replication_buckets,
-            pipeline_name=pipeline_name,
+            pipeline_name=self.name,
             restart_execution_on_update=restart_execution_on_update,
-            role=role,
+            role=role if role else self.pipe_role,
             stages=stages)
 
-        #
-        self.bucket = aws_s3.Bucket(
-            self, 'bucket',
-            bucket_name='{}-artifacts'.format(id),
-            removal_policy=core.RemovalPolicy.RETAIN,
-            encryption=aws_s3.BucketEncryption.KMS_MANAGED,
-            versioned=True
-        )
+    def _setup(self, scope, id: str, cross_account_keys: bool=None, bucket_props: aws_s3.BucketProps=None):
+        # Aviv Pipeline Pre-Init
+        self.artifacts = dict((sname, dict()) for sname in self.named_stages)
+        self.actions = dict((sname, dict()) for sname in self.named_stages)
 
-        self.project = self.create_project('default', **project_params._values)
+        # S3 defaults
+        defprops = aws_s3.BucketProps(
+            versioned=True,
+            removal_policy=core.RemovalPolicy.RETAIN,
+            block_public_access=aws_s3.BlockPublicAccess.BLOCK_ALL,
+            public_read_access=False,
+            # bucket_name='{}-artifacts'.format(self.name)
+        )
+        props = defprops._values
+        if bucket_props:
+            props = list(**props, **bucket_props._values)
+
+        if 'encryption_key' in props or cross_account_keys:
+            props['encryption'] = aws_s3.BucketEncryption.KMS
+        else:
+            props['encryption'] = aws_s3.BucketEncryption.KMS_MANAGED
+
+        logging.info(" -> setup bucket {}".format(props))
+        self.bucket = aws_s3.Bucket(
+            scope, id + '-bucket', **props
+        )
+        # # TODO: check / shouldn't be needed?
+        # self.bucket.grant_read_write(self.pipe_role)
 
     @staticmethod
-    def _role(scope: constructs.Construct):
+    def _role(scope: constructs.Construct, id: str='role'):
         """Mimic CDK role for multi-accounts deployment
         Just put everything in one Role...
 
@@ -113,12 +175,12 @@ class Pipeline(cp.Pipeline):
             IAM Role: [description]
         """
         return aws_iam.Role(
-            scope, 'pipeRole',
+            scope, id,
             assumed_by=aws_iam.CompositePrincipal(
                 aws_iam.ServicePrincipal('codebuild.amazonaws.com'),
                 aws_iam.ServicePrincipal('codepipeline.amazonaws.com'),
                 # aws_iam.ServicePrincipal('codedeploy.amazonaws.com'),
-                aws_iam.AccountPrincipal(scope.account)
+                # aws_iam.AccountPrincipal(scope.account)
             ),
             inline_policies={
                 'fullpower': aws_iam.PolicyDocument(statements=[
@@ -172,16 +234,16 @@ class Pipeline(cp.Pipeline):
         if not build_spec and build_spec_file:
             build_spec = load_buildspec(build_spec_file)
 
-        if not project_name:
-            project_name = "{}".format(self.node.id)
+        # if not project_name:
+        #     project_name = "{}".format(self.node.id)
 
-        if not role and self.pipe_role:
-            role = self.pipe_role
+        # if not role and self.pipe_role:
+        #     role = self.pipe_role
 
         logging.warning("Create project: {}".format(project_name))
 
         return cb.PipelineProject(
-            self, "project",
+            self, id,
             allow_all_outbound=allow_all_outbound,
             badge=badge,
             build_spec=build_spec,
@@ -214,7 +276,9 @@ class Pipeline(cp.Pipeline):
             logging.warning("Source: {}".format(url))
             url = url.replace('https://github.com/', '').replace('.git', '')
             purl = url.split('/')
-            self.github_source(owner=purl[0], repo=purl[1])
+            return self.github_source(owner=purl[0], repo=purl[1])
+        else:
+            logging.error(f"Sourcing {url} isn't implemented")
 
     def github_source(self, owner: str, repo: str, branch: str='master', connection_arn: str=None, oauth: str=None, role: aws_iam.IRole=None) -> typing.Dict[cpa.Action, cp.Artifact]:
         """[summary]
@@ -259,19 +323,27 @@ class Pipeline(cp.Pipeline):
         sources: typing.List=None,
         input: cp.Artifact=None,
         project: cb.IProject=None,
+        project_props: cb.PipelineProjectProps=None,
         environment_variables: typing.Dict[str, cb.BuildEnvironmentVariable]=None,
-        extra_inputs: typing.List[cp.Artifact]=None,
-        outputs: typing.List[cp.Artifact]=[cp.Artifact()],
+        extra_inputs: typing.List[cp.Artifact]=[],
+        outputs: typing.List[cp.Artifact]=[],
         type: cpa.CodeBuildActionType=cpa.CodeBuildActionType.BUILD,
         role: aws_iam.IRole=None,
         run_order: typing.Union[int, float]=None,
         variables_namespace: str=None) -> typing.Dict[cpa.Action, typing.List[cp.Artifact]]:
 
         if not project:
-            project = self.project
+            if project_props and isinstance(project_props, cb.PipelineProjectProps):
+                project_props = project_props._values
+            else:
+                project_props = project_props if project_props else dict()
+            project = self.create_project(action_name, **project_props)
 
         if not role and self.pipe_role:
             role = self.pipe_role
+
+        if not outputs:
+            outputs = [cp.Artifact(action_name)]
 
         if sources:
             logging.warning("Build soures: {}".format(sources))
@@ -306,101 +378,3 @@ class Pipeline(cp.Pipeline):
         self.artifacts['build'][action_name] = outputs
         self.actions['build'][action_name] = action
         return action, outputs
-
-    def deploy_stack(
-        self,
-        stack_name: str,
-        *,
-        action_name: str = None,
-        admin_permissions: bool = True,
-        template_path: cp.ArtifactPath = None,
-        account: str = None,
-        capabilities: typing.List[cfn.CloudFormationCapabilities] = None,
-        deployment_role: aws_iam.IRole = None,
-        extra_inputs: typing.List[cp.Artifact] = None,
-        output: cp.Artifact = None,
-        output_file_name: str = None,
-        parameter_overrides: typing.Dict[str, typing.Any] = None,
-        region: str = None,
-        replace_on_failure: bool = None,
-        template_configuration: cp.ArtifactPath = None,
-        role: aws_iam.IRole = None,
-        run_order: typing.Union[int, float] = None,
-        variables_namespace: str = None):
-
-        if not action_name:
-            action_name = "Deploy-{}".format(stack_name)
-
-        if not role and self.pipe_role:
-            role = self.pipe_role
-
-        logging.warning("Deploy CFN Stack: {}".format(stack_name))
-
-        # If no template_path provided, pick the template using from the 1st built object
-        if not template_path:
-            artifacts = list(self.artifacts['build'].values())
-            logging.warning(" -> Got artifacts from: {}".format(list(self.artifacts['build'].keys())))
-            template_path = artifacts[0][0].at_path(
-                "{}.template.json".format(stack_name)
-            )
-
-        action = cpa.CloudFormationCreateUpdateStackAction(
-            admin_permissions=admin_permissions,
-            stack_name=stack_name,
-            template_path=template_path,
-            account=account,
-            capabilities=capabilities,
-            deployment_role=deployment_role,
-            extra_inputs=extra_inputs,
-            output=output,
-            output_file_name=output_file_name,
-            parameter_overrides=parameter_overrides,
-            region=region,
-            replace_on_failure=replace_on_failure,
-            template_configuration=template_configuration,
-            role=role,
-            action_name=action_name,
-            run_order=run_order,
-            variables_namespace=variables_namespace
-        )
-        self.artifacts['deploy'][action_name] = output
-        self.actions['deploy'][action_name] = action
-
-
-# class Pipelines(core.Construct):
-
-#     def __init__(self, scope, id, github_config: dict=None, project_config: dict=None):
-#         super().__init__(scope, id)
-
-#         self.pipe = Pipeline(self, 'pipe', cross_account_keys=True, pipeline_name=id + '-pipe')
-#         self.pipe.project(**project_config)
-
-#         if github_config:
-#             self.source(**github_config)
-#             self._build(self.artifacts['sources'][0])
-
-#     def source(self, github_config: dict, stage_it=True):
-#         artifact, checkout = self.pipe.github_source(**github_config)
-#         if stage_it:
-#             self.pipe.add_stage(stage_name='Source', actions=[checkout])
-#         # self.pipe.add_stage(stage_name='Source@{}'.format(repo), actions=[checkout])
-
-#     def _build(self, input, extra_inputs=[]):
-
-#         self.pipe.add_stage(
-#             stage_name="Build",
-#             actions=self.actions['builds']
-#         )
-
-#     def deploy(self, stack_name: str, *, template_path: str=None, action_name: str=None, stage_it: bool=True, **deploy_config):
-
-#         action = None
-
-#         # Save deploy action
-#         self.actions['deploy'][action_name] = action
-#         # Stage it (execute deploy) in pipeline
-#         if stage_it:
-#             self.pipe.add_stage(
-#                 stage_name=action_name,
-#                 actions=[self.actions['deploy'][action_name]]
-#             )

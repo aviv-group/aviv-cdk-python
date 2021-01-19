@@ -1,6 +1,8 @@
 import os
 from aws_cdk import (
+    aws_codebuild as cb,
     aws_ssm as ssm,
+    aws_s3,
     core
 )
 from aviv_cdk import (
@@ -8,29 +10,32 @@ from aviv_cdk import (
 )
 
 secret_path = os.environ.get('SECRET_PATH', 'aviv/gtt/ace/tokens')
-ssm_path = os.environ.get('SSM_PATH', '/aviv/ace/github/connection/aviv-group')
-
 
 app = core.App()
 
-TAGS = {tag: app.node.try_get_context(tag) for tag in ['environment', 'organisation', 'team', 'scope', 'application']}
+tags = {tag: app.node.try_get_context(tag) for tag in ['environment', 'organisation', 'team', 'scope', 'application']}
 
 cicd = core.Stack(app, 'aviv-cdk-cicd', env=core.Environment(account='605901617242', region='eu-west-1'))
-pipe = pipelines.Pipelines(
+pipe = pipelines.Pipeline(
     cicd, 'aviv-cdk-cicd',
-    github_config=dict(
-        connection=ssm.StringParameter.value_from_lookup(cicd, parameter_name=ssm_path),
-        owner='aviv-group',
-        repo='aviv-cdk-python',
-        branch='master'
-    ),
-    project_config=dict(
-        environment_variables=pipelines.Pipelines.env(dict(
+    connection={
+        'aviv-group': ssm.StringParameter.value_from_lookup(cicd, parameter_name='/aviv/ace/github/connection/aviv-group')
+    },
+    project_props=cb.PipelineProjectProps(
+        environment_variables=pipelines.load_env(dict(
             PYPI=app.node.try_get_context('pypi'),
             PYPI_TOKEN=core.SecretValue.secrets_manager(secret_path, json_field='PYPI_TOKEN')
         ))
     )
 )
+pipe.github_source(
+    owner='aviv-group',
+    repo='aviv-cdk-python',
+    branch='master'
+)
+pipe.build('aviv-cdk', sources=['aviv-cdk-python@master'])
+# pipe.deploy_stack('aviv-cdk-iam-idp')
+pipe.stage_all()
 
 # pipe.deploy(
 #     stack_name='aviv-cdk-iam-idp',

@@ -1,5 +1,5 @@
 .DS_Store
-Pipfile.lock
+.eggs
 __pycache__
 cdk.out
 .vscode

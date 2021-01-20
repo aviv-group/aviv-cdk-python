@@ -13,9 +13,6 @@ from aws_cdk import (
     aws_kms,
     aws_ec2,
     aws_iam,
-    pipelines,
-    cloud_assembly_schema as cas,
-    cx_api,
     core
 )
 
@@ -47,41 +44,6 @@ class GithubConnection(core.Construct):
             host_arn=github_config['connection_host'],
             provider_type='GitHub'
         )
-
-
-class CdkPipeline(pipelines.CdkPipeline):
-
-    def __init__(self,
-        scope: constructs.Construct,
-        id: str,
-        *,
-        pipeline_name: str,
-        self_mutating: bool = False,
-        cloud_assembly_artifact: cp.Artifact = None,
-        cdk_cli_version: typing.Optional[str] = None,
-        code_pipeline: typing.Optional[cp.Pipeline] = None,
-        cross_account_keys: typing.Optional[bool] = None) -> None:
-
-        super().__init__(scope=scope, id=id, cloud_assembly_artifact=cloud_assembly_artifact, cdk_cli_version=cdk_cli_version,
-            code_pipeline=code_pipeline, cross_account_keys=cross_account_keys)
-
-    # def deploy_stack(
-    #     self,
-    #     name: str,
-    #     props: pipelines.DeployCdkStackActionProps):
-
-    #     # template_path =  "{}.template.json".format(stack_name), #template_path,
-    #     # cloud_assembly_input=self.artifacts['build'][0]
-    #     if not props:
-    #         # props = pipelines.DeployCdkStackActionOptions()
-    #         props = pipelines.DeployCdkStackActionProps()
-        
-    #     action = pipelines.DeployCdkStackAction(**props._values)
-
-    #     pipelines.AssetPublishingCommand(
-    #         'apublish', asset_id='we'
-    #     )
-        # logging.info(" -> Got assets from: {}".format(assets_path))
 
 
 class Pipeline(cp.Pipeline):

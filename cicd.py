@@ -20,12 +20,17 @@ pipe = pipelines.Pipeline(
     cicd, 'aviv-cdk-cicd',
     connection={
         'aviv-group': ssm.StringParameter.value_from_lookup(cicd, parameter_name='/aviv/ace/github/connection/aviv-group')
-    },
-    project_props=cb.PipelineProjectProps(
-        environment_variables=pipelines.load_env(dict(
-            PYPI=app.node.try_get_context('pypi'),
-            PYPI_TOKEN=core.SecretValue.secrets_manager(secret_path, json_field='PYPI_TOKEN')
-        ))
+    }
+)
+project = pipe.create_project(
+    'project',
+    # environment_variables=pipelines.load_env(dict(
+    environment_variables=dict(
+        PYPI=cb.BuildEnvironmentVariable(value=app.node.try_get_context('pypi')),
+        PYPI_TOKEN=cb.BuildEnvironmentVariable(
+            value=core.SecretValue.secrets_manager(secret_path, json_field='PYPI_TOKEN'),
+            type=cb.BuildEnvironmentVariableType.SECRETS_MANAGER
+        )
     )
 )
 pipe.github_source(
@@ -33,7 +38,7 @@ pipe.github_source(
     repo='aviv-cdk-python',
     branch='master'
 )
-pipe.build('aviv-cdk', sources=['aviv-cdk-python@master'])
+pipe.build('aviv-cdk', sources=['aviv-cdk-python@master'], project=project)
 # pipe.deploy_stack('aviv-cdk-iam-idp')
 pipe.stage_all()
 

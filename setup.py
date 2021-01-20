@@ -20,10 +20,8 @@ setuptools.setup(
     ],
     packages=setuptools.find_packages(include=['aviv_cdk']),
     data_files=[
-        ("share/aviv-cdk/iam-idp", [
-            "lambdas/cfn_resources/requirements.txt",
-            "lambdas/iam_idp/saml.py"
-        ]),
+        ("share/aviv-cdk/cfn-resources", ["lambdas/cfn_resources/requirements.txt"]),
+        ("share/aviv-cdk/iam-idp", ["lambdas/iam_idp/saml.py"])
     ],
     include_package_data=True,
     entry_points={
@@ -40,6 +38,8 @@ setuptools.setup(
          "aws-cdk-aws-iam>=1.85",
          "aws-cdk-aws-s3>=1.85",
          "aws-cdk-aws-lambda>=1.85",
+         "aws-cdk-aws-events>=1.85",
+         "aws-cdk-aws-events-targets>=1.85",
          "aws-cdk-aws-ssm>=1.85",
          "aws-cdk-aws-secretsmanager>=1.85"
    ],

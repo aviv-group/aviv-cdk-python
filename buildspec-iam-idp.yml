@@ -13,37 +13,20 @@ phases:
       nodejs: 12
     commands:
       - npm install -g aws-cdk
-      - pip install ${PIP_FLAGS} --upgrade pip aws-sam-cli awscli
+      # - pip install ${PIP_FLAGS} --upgrade pip aws-sam-cli awscli
       - TAG=$(git name-rev --name-only HEAD | cut -d/ -f2)
   pre_build:
     commands:
-      - pip install ${PIP_FLAGS} .[cicd]
-      # Build cfn_resources layer
-      - pip install ${PIP_FLAGS} -r lambdas/cfn_resources/requirements.txt -t build/layers/cfn_resources/
-      - (cd build/layers/cfn_resources/ &&  zip -q -r ../../artifacts-cfn_resources.zip .)
+      # Install Aviv CDK
+      - pip install ${PIP_FLAGS} .
+      - |
+        # Build cfn_resources layer and zip it
+        cfnreqpath=$(python3 -c 'import sys; print(sys.prefix)')/share/aviv-cdk/cfn-resources/
+        pip install ${PIP_FLAGS} -r ${cfnreqpath}requirements.txt -t build/cfn_resources/
+        (cd build/cfn_resources/ &&  zip -q -r ../artifacts-cfn_resources.zip .)
   build:
     commands:
-      - |
-        if [ "$TAG" != "master" ]; then
-          python3 setup.py sdist bdist_wheel
-        fi
       - cdk -a 'python3 app_idp.py' synth
-    finally:
-      - echo Build done for ${TAG}
-  post_build:
-    commands:
-      - \[ "${ENV}" == "prod"\] && TNAME="pypi" || TNAME="testpypi"
-      - |
-        cat << EOF > ~/.pypirc
-        [${TNAME}]
-        username = __token__
-        password = ${PYPI_TOKEN}
-        EOF
-        if [ "$TAG" != "master" ]; then
-          echo Releasing aviv-cdk@${TAG}
-          pip install ${PIP_FLAGS} twine;
-          python3 -m twine upload --repository ${TNAME} dist/*
-        fi
 
 artifacts:
   files:
@@ -56,7 +39,7 @@ artifacts:
       files:
         - '**/*'
       name: cfn_resources-$(date +%Y-%m-%d)
-      base-directory: build/layers/cfn_resources/
+      base-directory: build/cfn_resources/
       discard-paths: no
 
 cache:

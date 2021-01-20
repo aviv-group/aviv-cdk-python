@@ -1,4 +1,4 @@
-__version__='0.0.5rc12'
+__version__='0.0.5'
 
 
 def __json_load(filename: str) -> dict:

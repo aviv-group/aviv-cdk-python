@@ -23,10 +23,9 @@ class IAMIdpSAML(CDKLambda):
             idp_name (str): IAM Idp name
             idp_url (str): Your SAML Identity provider URL
         """
-        rdir = sys.prefix + '/share/aviv-cdk/iam-idp/'
         if not cfn_lambda:
-            p = os.path.dirname(os.path.dirname(__file__))
-            cfn_lambda = p + '/lambdas/iam_idp/saml.py'
+            share_path = sys.prefix + '/share/aviv-cdk/' # TODO: FIX This should be cfn_resources?
+            cfn_lambda = f"{share_path}iam-idp/saml.py"
         lambda_attrs=dict(
                 code=aws_lambda.InlineCode(CDKLambda._code_inline(cfn_lambda)),
                 handler='index.handler',
@@ -34,7 +33,10 @@ class IAMIdpSAML(CDKLambda):
                 runtime=aws_lambda.Runtime.PYTHON_3_7
         )
         if not cfn_resources_path:
-            cfn_resources_path=rdir + 'artifacts-cfn_resources.zip'
+            # TODO: check how to facilitate this? at least it is now documented in the README
+            if not os.path.exists('build/artifacts-cfn_resources.zip'):
+                raise FileNotFoundError('You need to generate a "build/artifacts-cfn_resources.zip" first or provide the path for the AssetCode in the cfn_resources_path argument')
+            cfn_resources_path='build/artifacts-cfn_resources.zip'
         layer_attrs=dict(
             description='cfn_resources layer for idp',
             code=aws_lambda.AssetCode(cfn_resources_path)
@@ -64,6 +66,7 @@ class IAMIdpSAML(CDKLambda):
         # Export
         ssm_name = '/' + id.replace('-', '/')
         ssm.StringParameter(self, 'ssm', string_value=self._idp.ref, parameter_name=ssm_name)
+        core.CfnOutput(self, 'SSMIAMIdpSAMLArn', value=ssm_name)
         core.CfnOutput(self, 'IAMIdpSAMLArn', value=self._idp.ref)
 
     @property

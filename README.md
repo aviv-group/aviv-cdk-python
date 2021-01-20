@@ -37,19 +37,37 @@ python3 -m twine upload --repository testpypi dist/*
 
 ### CICD
 
-`cdk -a 'python3 cicd.py' ...`
-
-_requires_:
-
-- buildspec.yml
+```bash
+cdk -a 'python3 cicd.py' synth
+```
 
 ### IAM Idp
 
-`cdk -a 'python3 app_idp.py' ...`
+A construct that includes an AWS [lambda](lambdas/iam_idp/saml.py) function and a [cfn_resources layer](lambdas/cfn_resources/) to support it.  
+This lambda is used to validate the IAM idp SAML provider.  
 
-_requires_:
+Use the [sample stack](app_idp.py) to get started!
 
-- cfn_resources.zip
+```bash
+# 1. Build the cfn_resources layer
+cfnreqpath=$(python3 -c 'import sys; print(sys.prefix)')/share/aviv-cdk/cfn-resources/
+pip install ${PIP_FLAGS} -r ${cfnreqpath}requirements.txt -t build/cfn_resources/
+(cd build/cfn_resources/ &&  zip -q -r ../artifacts-cfn_resources.zip .)
+
+# 2. Generate idp stack (example)
+cdk -a 'python3 app_idp.py' synth
+```
+
+Resulting the stack and artifacts generated in `cdk.out/`.
+
+Or use the more automated way with AWS codebuild (locally) and the [buildspec-iam-idp](buildspec-iam-idp.yml).
+
+```bash
+codebuild_build.sh -i aws/codebuild/standard:4.0 -a build -b buildspec-iam-idp.yml
+```
+
+Resulting in 2 zip files, `artifacts.zip` with the whole cdk.out/ app and `artifacts-cfn_resources.zip` which contains the python packages for the **cfn_resources** AWS lambda layer.
+
 
 ## Command line tools
 

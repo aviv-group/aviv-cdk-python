@@ -21,7 +21,11 @@ setuptools.setup(
     packages=setuptools.find_packages(include=['aviv_cdk']),
     data_files=[
         ("share/aviv-cdk/cfn-resources", ["lambdas/cfn_resources/requirements.txt"]),
-        ("share/aviv-cdk/iam-idp", ["lambdas/iam_idp/saml.py"])
+        ("share/aviv-cdk/iam-idp", [
+            "lambdas/iam_idp/saml.py",
+            "buildspec-iam-idp.yml",
+            "lambdas//cfn_resources/requirements.txt"
+        ])
     ],
     include_package_data=True,
     entry_points={
@@ -54,6 +58,7 @@ setuptools.setup(
             "aws-cdk-aws-codepipeline",
             "aws-cdk-aws-codepipeline-actions",
             "aws-cdk-aws-codestarconnections",
+            "aws-cdk-codepipelines",
             "pyyaml>=5.3.1"
         ],
         "nextstep": [

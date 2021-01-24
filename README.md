@@ -63,6 +63,8 @@ Resulting the stack and artifacts generated in `cdk.out/`.
 Or use the more automated way with AWS codebuild (locally) and the [buildspec-iam-idp](buildspec-iam-idp.yml).
 
 ```bash
+# from https://github.com/aws/aws-codebuild-docker-images
+# wget https://raw.githubusercontent.com/aws/aws-codebuild-docker-images/master/local_builds/codebuild_build.sh
 codebuild_build.sh -i aws/codebuild/standard:4.0 -a build -b buildspec-iam-idp.yml
 ```
 

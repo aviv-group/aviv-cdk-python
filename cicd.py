@@ -18,7 +18,7 @@ tags = {tag: app.node.try_get_context(tag) for tag in ['environment', 'organisat
 cicd = core.Stack(app, 'aviv-cdk-cicd', env=core.Environment(account='605901617242', region='eu-west-1'))
 pipe = pipelines.Pipeline(
     cicd, 'aviv-cdk-cicd',
-    connection={
+    connections={
         'aviv-group': ssm.StringParameter.value_from_lookup(cicd, parameter_name='/aviv/ace/github/connection/aviv-group')
     }
 )
@@ -27,8 +27,9 @@ project = pipe.create_project(
     # environment_variables=pipelines.load_env(dict(
     environment_variables=dict(
         PYPI=cb.BuildEnvironmentVariable(value=app.node.try_get_context('pypi')),
+        # PYPI_TOKEN=core.SecretValue.secrets_manager(secret_path, json_field='PYPI_TOKEN'),
         PYPI_TOKEN=cb.BuildEnvironmentVariable(
-            value=core.SecretValue.secrets_manager(secret_path, json_field='PYPI_TOKEN'),
+            value=f"{secret_path}:PYPI_TOKEN",
             type=cb.BuildEnvironmentVariableType.SECRETS_MANAGER
         )
     )

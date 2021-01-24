@@ -10,6 +10,7 @@ from aws_cdk import (
     aws_codestarconnections as csc,
     aws_cloudformation as cfn,
     aws_s3,
+    aws_ssm,
     aws_kms,
     aws_ec2,
     aws_iam,
@@ -48,21 +49,20 @@ class GithubConnection(core.Construct):
 
 class Pipeline(cp.Pipeline):
     bucket: aws_s3.IBucket
-    key: aws_kms.IKey
-    name: str
-    project: cb.PipelineProject
+    connections: typing.Dict[str, str]
+
     named_stages = ['source', 'build', 'publish', 'deploy']
-    connection: typing.Dict[str, str]
     artifacts: typing.Dict[str, typing.Dict[str, typing.Union[cp.Artifact, typing.List[cp.Artifact]]]]
     actions: typing.Dict[str, typing.Dict[str, cpa.Action]]
+    key: aws_kms.IKey
+    project: cb.PipelineProject
     pipe_role: aws_iam.IRole = None
 
     def __init__(
         self, scope, id: str,
-        connection: typing.Dict[str, str]=None,
+        connections: typing.Dict[str, str]=None,
         *,
         pipe_role: aws_iam.IRole=None,
-        # project_props: cb.PipelineProjectProps=None,
         bucket_props: aws_s3.BucketProps=None,
         artifact_bucket: aws_s3.IBucket=None,
         cross_account_keys: bool=None,
@@ -72,58 +72,25 @@ class Pipeline(cp.Pipeline):
         role: aws_iam.IRole=None,
         stages: typing.List[cp.StageProps]=None) -> None:
 
-        # Default CDK Pipeline props
-        # Set some defaults
-        self.connection = connection
-        self.name = pipeline_name if pipeline_name else '{}-pipe'.format(id)
+        # Aviv Pipeline Pre-Init
+        self.artifacts = dict((sname, dict()) for sname in self.named_stages)
+        self.actions = dict((sname, dict()) for sname in self.named_stages)
+        # Codestar Connections for github and co
+        self.connections = connections
 
         # TODO: Review pipeline IAM role(s) scheme
         self.pipe_role = pipe_role if pipe_role else Pipeline._role(scope, id + '-role')
 
-        # Finish Aviv Pipeline setup
-        self._setup(scope, id, cross_account_keys=cross_account_keys, bucket_props=bucket_props)
-        if not artifact_bucket:
-            artifact_bucket = self.bucket
-
-        logging.warning("Init pipeline: {}".format(self.name))
+        logging.warning(f"Init Pipeline: {pipeline_name if pipeline_name else id + '-pipe'}")
         super().__init__(
             scope, id,
-            artifact_bucket=artifact_bucket,
+            # artifact_bucket=self.bucket,
             cross_account_keys=cross_account_keys,
             cross_region_replication_buckets=cross_region_replication_buckets,
-            pipeline_name=self.name,
+            pipeline_name=pipeline_name if pipeline_name else f"{id}-pipe",
             restart_execution_on_update=restart_execution_on_update,
-            role=role if role else self.pipe_role,
+            role=self.pipe_role,
             stages=stages)
-
-    def _setup(self, scope, id: str, cross_account_keys: bool=None, bucket_props: aws_s3.BucketProps=None):
-        # Aviv Pipeline Pre-Init
-        self.artifacts = dict((sname, dict()) for sname in self.named_stages)
-        self.actions = dict((sname, dict()) for sname in self.named_stages)
-
-        # S3 defaults
-        defprops = aws_s3.BucketProps(
-            versioned=True,
-            removal_policy=core.RemovalPolicy.RETAIN,
-            block_public_access=aws_s3.BlockPublicAccess.BLOCK_ALL,
-            public_read_access=False,
-            # bucket_name='{}-artifacts'.format(self.name)
-        )
-        props = defprops._values
-        if bucket_props:
-            props = list(**props, **bucket_props._values)
-
-        if 'encryption_key' in props or cross_account_keys:
-            props['encryption'] = aws_s3.BucketEncryption.KMS
-        else:
-            props['encryption'] = aws_s3.BucketEncryption.KMS_MANAGED
-
-        logging.info(" -> setup bucket {}".format(props))
-        self.bucket = aws_s3.Bucket(
-            scope, id + '-bucket', **props
-        )
-        # # TODO: check / shouldn't be needed?
-        # self.bucket.grant_read_write(self.pipe_role)
 
     @staticmethod
     def _role(scope: constructs.Construct, id: str='role'):
@@ -196,12 +163,6 @@ class Pipeline(cp.Pipeline):
         if not build_spec and build_spec_file:
             build_spec = load_buildspec(build_spec_file)
 
-        # if not project_name:
-        #     project_name = "{}".format(self.node.id)
-
-        # if not role and self.pipe_role:
-        #     role = self.pipe_role
-
         logging.warning("Create project: {}".format(project_name))
 
         return cb.PipelineProject(
@@ -255,8 +216,12 @@ class Pipeline(cp.Pipeline):
         artifact = cp.Artifact(artifact_name=repo.replace('-', '_'))
 
         if not connection_arn and not oauth:
-            if owner in self.connection:
-                connection_arn = self.connection[owner]
+            if owner in self.connections:
+                connection_arn = self.connections[owner]
+                if connection_arn.startswith('aws:ssm:'):
+                    connection_arn = aws_ssm.StringParameter.value_from_lookup(
+                        self, parameter_name=connection_arn.replace('aws:ssm:', '')
+                    )
             else:
                 raise SystemError("No credentials for Github (need either a connnection_arn or oauth)")
 
@@ -286,6 +251,7 @@ class Pipeline(cp.Pipeline):
         input: cp.Artifact=None,
         project: cb.IProject=None,
         project_props: cb.PipelineProjectProps=None,
+        build_spec_file: str='buildspec.yml',
         environment_variables: typing.Dict[str, cb.BuildEnvironmentVariable]=None,
         extra_inputs: typing.List[cp.Artifact]=[],
         outputs: typing.List[cp.Artifact]=[],
@@ -299,7 +265,13 @@ class Pipeline(cp.Pipeline):
                 project_props = project_props._values
             else:
                 project_props = project_props if project_props else dict()
-            project = self.create_project(action_name, **project_props)
+            # project = self.create_project(action_name, **project_props)
+            project = cb.Project(
+                self,
+                f"{action_name}-project",
+                build_spec=load_buildspec(build_spec_file)
+            )
+
 
         if not role and self.pipe_role:
             role = self.pipe_role

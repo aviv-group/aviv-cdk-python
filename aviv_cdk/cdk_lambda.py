@@ -1,4 +1,6 @@
 import os
+import sys
+import logging
 from aws_cdk import (
     aws_ssm as ssm,
     aws_events_targets,
@@ -75,4 +77,6 @@ class CDKLambda(core.Construct):
         """
         with open(filepath, encoding="utf8") as fp:
             code = fp.read()
+        if sys.getsizeof(code) > 4096:
+            logging.warning(f"Code inline size if > 4096: {sys.getsizeof(code)}")
         return code

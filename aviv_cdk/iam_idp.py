@@ -27,7 +27,7 @@ class IAMIdpSAML(CDKLambda):
             share_path = sys.prefix + '/share/aviv-cdk/' # TODO: FIX This should be cfn_resources?
             cfn_lambda = f"{share_path}iam-idp/saml.py"
         lambda_attrs=dict(
-                code=aws_lambda.InlineCode(CDKLambda._code_inline(cfn_lambda)),
+                code=aws_lambda.Code.from_inline(CDKLambda._code_inline(cfn_lambda)),
                 handler='index.handler',
                 timeout=core.Duration.seconds(20),
                 runtime=aws_lambda.Runtime.PYTHON_3_7
@@ -37,12 +37,19 @@ class IAMIdpSAML(CDKLambda):
             if not os.path.exists('build/artifacts-cfn_resources.zip'):
                 raise FileNotFoundError('You need to generate a "build/artifacts-cfn_resources.zip" first or provide the path for the AssetCode in the cfn_resources_path argument')
             cfn_resources_path='build/artifacts-cfn_resources.zip'
-        layer_attrs=dict(
+        # layer_attrs=dict(
+        layer_attrs=aws_lambda.LayerVersionProps(
             description='cfn_resources layer for idp',
-            code=aws_lambda.AssetCode(cfn_resources_path)
+            code=aws_lambda.Code.from_asset(cfn_resources_path),
+            compatible_runtimes=[
+                # aws_lambda.Runtime.PYTHON_3_6,
+                aws_lambda.Runtime.PYTHON_3_7,
+                aws_lambda.Runtime.PYTHON_3_8
+            ]
         )
-        super().__init__(scope, id, lambda_attrs=lambda_attrs, layer_attrs=layer_attrs, remote_account_grant=False)
 
+        # Create lambda function + layer
+        super().__init__(scope, id, lambda_attrs=lambda_attrs, layer_attrs=layer_attrs._values, remote_account_grant=False)
         # Add required policies for the lambda to create an IAM idp
         self._lambda.add_to_role_policy(
             iam.PolicyStatement(
@@ -51,11 +58,10 @@ class IAMIdpSAML(CDKLambda):
                 resources=['*']
             )
         )
-
         self._idp = cfn.CustomResource(
             self, "identityProvider",
             resource_type='Custom::SAMLProvider',
-            provider=cfn.CustomResourceProvider.lambda_(self._lambda),
+            provider=cfn.CustomResourceProvider.from_lambda(self._lambda.current_version),
             properties=dict(
                 Name=idp_name,
                 URL=idp_url

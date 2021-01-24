@@ -28,9 +28,13 @@ phases:
         username = __token__
         password = ${PYPI_TOKEN}
         EOF
+      - pip install ${PIP_FLAGS} twine
+      - |
         if [ "$TAG" != "master" ]; then
-          echo Releasing aviv-cdk@${TAG}
-          pip install ${PIP_FLAGS} twine;
+          echo "Releasing aviv-cdk@${TAG}"
+          python3 -m twine upload --repository ${PYPI} dist/*
+        else:
+          echo "TODO release on PyPi dev"
           python3 -m twine upload --repository ${PYPI} dist/*
         fi
 

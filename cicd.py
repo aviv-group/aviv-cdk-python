@@ -23,6 +23,14 @@ pipe = pipelines.Pipeline(
         'aviv-group': aws_ssm.StringParameter.value_from_lookup(cicd, parameter_name='/aviv/ace/github/connection/aviv-group')
     }
 )
+
+pipe.github_source(
+    owner='aviv-group',
+    repo='aviv-cdk-python',
+    branch='master'
+)
+
+# Build our project
 project = pipe.create_project(
     'project',
     # environment_variables=pipelines.load_env(dict(
@@ -35,26 +43,11 @@ project = pipe.create_project(
         )
     )
 )
-# project.add_to_role_policy(
-# pipe.role.add_managed_policy(
 project.role.add_managed_policy(
     aws_iam.ManagedPolicy.from_aws_managed_policy_name(managed_policy_name='SecretsManagerReadWrite')
 )
-
-# pipe.role.add_to_policy()
-
-pipe.github_source(
-    owner='aviv-group',
-    repo='aviv-cdk-python',
-    branch='master'
-)
 pipe.build('aviv-cdk', sources=['aviv-cdk-python@master'], project=project)
-# pipe.deploy_stack('aviv-cdk-iam-idp')
-pipe.stage_all()
 
-# pipe.deploy(
-#     stack_name='aviv-cdk-iam-idp',
-#     template_path=pipe.artifacts['builds'][0].at_path("cdk.out/aviv-cdk-iam-idp.template.json")
-# )
+pipe.stage_all()
 
 app.synth()

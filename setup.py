@@ -58,7 +58,7 @@ setuptools.setup(
             "aws-cdk-aws-codepipeline",
             "aws-cdk-aws-codepipeline-actions",
             "aws-cdk-aws-codestarconnections",
-            "aws-cdk-codepipelines",
+            "aws-cdk-pipelines",
             "pyyaml>=5.3.1"
         ],
         "nextstep": [

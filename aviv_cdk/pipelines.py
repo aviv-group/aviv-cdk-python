@@ -220,7 +220,7 @@ class Pipeline(cp.Pipeline):
             logging.info("Source: {}".format(url))
             url = url.replace('https://github.com/', '').replace('.git', '')
             purl = url.split('/')
-            repo = purl
+            repo = purl[1]
             if purl[1].find('@') > 0:
                 prepo = purl[1].split('@')
                 repo = prepo[0]

@@ -21,10 +21,16 @@ from aws_cdk import (
 # Force CDK 'new' bootstrap/synth style
 os.environ['CDK_NEW_BOOTSTRAP'] = '1'
 
-def load_env(environment_variables: dict):
+def buildenv(environment_variables: dict):
     envs = dict()
     for env, value in environment_variables.items():
-        envs[env] = cb.BuildEnvironmentVariable(value=value)
+        if isinstance(value, str) and value.startswith('aws:sm:'):
+            envs[env] = cb.BuildEnvironmentVariable(
+                value=value.replace('aws:sm:', ''),
+                type=cb.BuildEnvironmentVariableType.SECRETS_MANAGER
+            )
+        else:
+            envs[env] = cb.BuildEnvironmentVariable(value=value)
     return envs
 
 def load_buildspec(specfile):
@@ -81,7 +87,7 @@ class Pipeline(cp.Pipeline):
         # TODO: Review pipeline IAM role(s) scheme
         self.pipe_role = pipe_role if pipe_role else Pipeline._role(scope, id + '-role')
 
-        logging.warning(f"Init Pipeline: {pipeline_name if pipeline_name else id + '-pipe'}")
+        logging.info(f"Init Pipeline: {pipeline_name if pipeline_name else id + '-pipe'}")
         super().__init__(
             scope, id,
             # artifact_bucket=self.bucket,
@@ -158,12 +164,18 @@ class Pipeline(cp.Pipeline):
         subnet_selection: aws_ec2.SubnetSelection=None,
         timeout: core.Duration=None,
         vpc: aws_ec2.IVpc=None) -> cb.PipelineProject:
+        """THIS IS A CODEPIPELINE PROJECT!!!
 
+        Args:
+            see PipelineProjectProps
+        Returns:
+            cb.PipelineProject: [description]
+        """
 
         if not build_spec and build_spec_file:
             build_spec = load_buildspec(build_spec_file)
 
-        logging.warning("Create project: {}".format(project_name))
+        logging.info("Create project: {}".format(project_name))
 
         return cb.PipelineProject(
             self, id,
@@ -189,17 +201,31 @@ class Pipeline(cp.Pipeline):
         for sname in self.named_stages:
             actions = list(self.actions[sname].values())
             if actions:
-                logging.warning("Stage: {} ({} actions)".format(sname, len(actions)))
+                logging.info("Stage: {} ({} actions)".format(sname, len(actions)))
                 self.add_stage(stage_name=sname.capitalize(), actions=actions)
             else:
-                logging.warning("Stage: No actions for: {}".format(sname))
+                logging.info("Stage: No actions for: {}".format(sname))
 
-    def source(self, url: str):
+    def source(self, url: str, branch: str='master'):
+        """Checkout Git(hub) source from url. Shorthand for github_source + passing parameters
+
+        Args:
+            url (str): [description]
+            branch (str, optional): [description]. Defaults to 'master'.
+
+        Returns:
+            [type]: [description]
+        """
         if url.startswith('https://github.com/'):
-            logging.warning("Source: {}".format(url))
+            logging.info("Source: {}".format(url))
             url = url.replace('https://github.com/', '').replace('.git', '')
             purl = url.split('/')
-            return self.github_source(owner=purl[0], repo=purl[1])
+            repo = purl
+            if purl[1].find('@') > 0:
+                prepo = purl[1].split('@')
+                repo = prepo[0]
+                branch = prepo[1]
+            return self.github_source(owner=purl[0], repo=repo, branch=branch)
         else:
             logging.error(f"Sourcing {url} isn't implemented")
 
@@ -265,13 +291,11 @@ class Pipeline(cp.Pipeline):
                 project_props = project_props._values
             else:
                 project_props = project_props if project_props else dict()
-            # project = self.create_project(action_name, **project_props)
             project = cb.Project(
                 self,
                 f"{action_name}-project",
                 build_spec=load_buildspec(build_spec_file)
             )
-
 
         if not role and self.pipe_role:
             role = self.pipe_role
@@ -280,23 +304,15 @@ class Pipeline(cp.Pipeline):
             outputs = [cp.Artifact(action_name)]
 
         if sources:
-            logging.warning("Build soures: {}".format(sources))
+            logging.info("Build soures: {}".format(sources))
             input=self.artifacts['source'][sources[0]]
             if len(sources) > 1:
                 extra_inputs=[self.artifacts['source'][extra] for extra in sources[1:]]
-        # artifacts = list(self.artifacts['source'].values())
 
-        # # Try to use the first artifact from 'source' actions
-        # if not input and artifacts:
-        #     input = artifacts[0]
-        #     # If no extra provided, pass additional artifacts that were eventually 'source'd
-        #     if len(artifacts) > 1 and not extra_inputs:
-        #         extra_inputs = artifacts[1:]
-        # else:
         if not input:
             raise SyntaxError('No input artifact to build')
 
-        logging.warning("Build: {} ({} extra(s))".format(action_name, len(extra_inputs)))
+        logging.info("Build: {} ({} extra(s))".format(action_name, len(extra_inputs)))
         action = cpa.CodeBuildAction(
             input=input,
             project=project,
@@ -309,6 +325,11 @@ class Pipeline(cp.Pipeline):
             run_order=run_order,
             variables_namespace=variables_namespace
         )
+        # Why not generated by CDK? with read only perm on specific params?
+        action.action_properties.role.add_managed_policy(
+            aws_iam.ManagedPolicy.from_aws_managed_policy_name(managed_policy_name='SecretsManagerReadWrite')
+        )
+
         self.artifacts['build'][action_name] = outputs
         self.actions['build'][action_name] = action
         return action, outputs

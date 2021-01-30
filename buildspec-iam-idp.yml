@@ -20,7 +20,6 @@ phases:
       # Install Aviv CDK
       - pip install ${PIP_FLAGS} .
       - |
-        # Build cfn_resources layer and zip it
         cfnreqpath=$(python3 -c 'import sys; print(sys.prefix)')/share/aviv-cdk/cfn-resources/
         pip install ${PIP_FLAGS} -r ${cfnreqpath}requirements.txt -t build/cfn_resources/
         (cd build/cfn_resources/ &&  zip -q -r ../artifacts-cfn_resources.zip .)

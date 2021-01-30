@@ -9,25 +9,25 @@ import logging
 import click
 
 # ~/.aws-sam/layers-pkg
-AWS_STEPFUNCTIONS_JAR_DL = os.environ.get("AWS_STEPFUNCTIONS_JAR_DL", "https://docs.aws.amazon.com/step-functions/latest/dg/samples/StepFunctionsLocal.tar.gz")
+# AWS_STEPFUNCTIONS_JAR_DL = os.environ.get("AWS_STEPFUNCTIONS_JAR_DL", "https://docs.aws.amazon.com/step-functions/latest/dg/samples/StepFunctionsLocal.tar.gz")
+# AWS_STEPFUNCTIONS_JAR = os.environ.get("AWS_STEPFUNCTIONS_JAR", "/usr/local/lib/aws/StepFunctionsLocal.jar")
 
-AWS_STEPFUNCTIONS_JAR = os.environ.get("AWS_STEPFUNCTIONS_JAR", "/usr/local/lib/aws/StepFunctionsLocal.jar")
 # disable SAM spyware
 os.environ['SAM_CLI_TELEMETRY'] = '0'
 
 PROCESSES = []
 
 
-def installJar(url: str=AWS_STEPFUNCTIONS_JAR_DL):
-    if not os.path.exists(AWS_STEPFUNCTIONS_JAR):
-        cdir = os.getcwd()
-        os.makedirs("/usr/local/lib/aws", exist_ok=True)
-        os.chdir("/usr/local/lib/aws")
-        os.system('wget {}'.format(url))
-        os.system('tar -xvzf StepFunctionsLocal.tar.gz')
-        os.chdir(cdir)
-    # check it
-    os.system("java -jar {} -v".format(AWS_STEPFUNCTIONS_JAR))
+# def installJar(url: str=AWS_STEPFUNCTIONS_JAR_DL):
+#     if not os.path.exists(AWS_STEPFUNCTIONS_JAR):
+#         cdir = os.getcwd()
+#         os.makedirs("/usr/local/lib/aws", exist_ok=True)
+#         os.chdir("/usr/local/lib/aws")
+#         os.system('wget {}'.format(url))
+#         os.system('tar -xvzf StepFunctionsLocal.tar.gz')
+#         os.chdir(cdir)
+#     # check it
+#     os.system("java -jar {} -v".format(AWS_STEPFUNCTIONS_JAR))
 
 def popen(cmd, **args):
     if not 'shell' in args or args['shell'] is not True:
@@ -36,9 +36,9 @@ def popen(cmd, **args):
     PROCESSES.append(p)
     return p
 
-def getJar(path: str=AWS_STEPFUNCTIONS_JAR):
-    sfnjar = path.replace("~", os.path.expanduser("~"))
-    return sfnjar
+# def getJar(path: str=AWS_STEPFUNCTIONS_JAR):
+#     sfnjar = path.replace("~", os.path.expanduser("~"))
+#     return sfnjar
 
 
 def getLambdas(tpl: str):

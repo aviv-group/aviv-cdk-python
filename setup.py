@@ -19,19 +19,23 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     packages=setuptools.find_packages(include=['aviv_cdk']),
+    py_modules=[
+        'bin.aws_local',
+        'bin.sfn_extract'
+    ],
     data_files=[
         ("share/aviv-cdk/cfn-resources", ["lambdas/cfn_resources/requirements.txt"]),
         ("share/aviv-cdk/iam-idp", [
             "lambdas/iam_idp/saml.py",
             "buildspec-iam-idp.yml",
-            "lambdas//cfn_resources/requirements.txt"
+            "lambdas/cfn_resources/requirements.txt"
         ])
     ],
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'aviv-aws=aviv_cdk.bin.aws_local:cli',
-            'aviv-cdk-sfn-extract=aviv_cdk.bin.sfn_extract:cli'
+            'aviv-aws=bin.aws_local:cli',
+            'aviv-cdk-sfn-extract=bin.sfn_extract:cli'
         ],
     },
     install_requires=[
